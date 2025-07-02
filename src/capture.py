@@ -126,9 +126,18 @@ class ObservatoryCamera:
             }
         elif (
             self.almanac.twilight_12_deg["evening"] - current_time
-        ).total_seconds() / 60 < 30:
+        ).total_seconds() / 60 > 20:
             return {
                 "exposure": 0.4 * u.second,
+                "gain": 100,
+                "interval": 2 * u.minute,
+                "mode": "evening_bright_twilight",
+            }
+        elif (
+            self.almanac.twilight_12_deg["evening"] - current_time
+        ).total_seconds() / 60 > 10:
+            return {
+                "exposure": 1 * u.second,
                 "gain": 100,
                 "interval": 2 * u.minute,
                 "mode": "evening_bright_twilight",
@@ -167,7 +176,7 @@ class ObservatoryCamera:
             if exposure_seconds < 0.01:
                 wait_time = 0.5
             else:
-                wait_time = exposure_seconds + 0.1
+                wait_time = exposure_seconds + 0.2
 
             print(f"Waiting {wait_time} seconds...")
             time.sleep(wait_time)
