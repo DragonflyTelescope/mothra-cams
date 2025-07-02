@@ -267,16 +267,33 @@ class ObservatoryCamera:
                     ).astype(np.uint8)
                 else:
                     normalized = image_data
+
             else:
                 print(f"Unexpected data type: {type(image_data)}")
                 return
 
             # Create PIL image
             img = Image.fromarray(normalized)
+            if normalized.shape[0] > 1500 or normalized.shape[1] > 2000:
+                img.thumbnail((2000, 1500), Image.Resampling.LANCZOS)
 
             # Always save/overwrite the main image for the website
-            main_filename = os.path.join(self.output_dir, f"{self.camera_name}.png")
-            img.save(main_filename)
+            main_filename = os.path.join(self.output_dir, f"{self.camera_name}.webp")
+            img.save(
+                main_filename,
+                format="WebP",
+                quality=75,  # Good quality/size balance
+                method=6,
+            )  # Best compression
+
+            # Also save as JPEG fallback for compatibility
+            jpeg_filename = os.path.join(self.output_dir, f"{self.camera_name}.jpg")
+            img.save(
+                jpeg_filename,
+                format="JPEG",
+                quality=80,  # Good quality
+                optimize=True,
+            )
 
             self.save_status_info(settings)
 
@@ -288,7 +305,7 @@ class ObservatoryCamera:
                     "archive",
                     f"{self.camera_name}_{timestamp.strftime('%Y%m%d_%H%M%S')}_{settings['mode']}.png",
                 )
-                img.save(archive_filename)
+                img.save(archive_filename, format="PNG")
 
                 # Also upload to S3 for timelapse storage
                 if self.s3_client and self.s3_bucket:
