@@ -463,7 +463,7 @@ def main():
     # Configuration
     obs_camera = ObservatoryCamera(
         camera_id=0,
-        output_dir="/data/observatory/img",
+        output_dir="/repo/html/img",
         camera_name="b14m11",
         s3_bucket=None,  # Set to None to disable S3
         cleanup_days=1,

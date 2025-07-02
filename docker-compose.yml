@@ -3,7 +3,7 @@ services:
     build: .
     container_name: observatory-camera
     volumes:
-      - /home/mothra/git/mothra-cams/html:/data/observatory
+      - /home/mothra/git/mothra-cams:/repo
       - /dev/bus/usb:/dev/bus/usb
     devices:
       - /dev/bus/usb
