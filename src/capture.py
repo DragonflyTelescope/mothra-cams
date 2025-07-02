@@ -320,8 +320,6 @@ class ObservatoryCamera:
                 s3_key,
                 ExtraArgs={
                     "ContentType": content_type,
-                    "ACL": "public-read",
-                    "CacheControl": "max-age=60",
                 },
             )
             print(f"Uploaded: s3://{self.s3_bucket}/{s3_key}")
@@ -494,7 +492,7 @@ def main():
     obs_camera = ObservatoryCamera(
         camera_id=0,
         camera_name="b14m11",
-        s3_bucket="mothra-webcams",  # Remove the s3:// prefix
+        s3_bucket="mothra-webcams",
         cleanup_days=7,
     )
 
