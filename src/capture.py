@@ -11,8 +11,6 @@ from botocore.exceptions import NoCredentialsError
 from PIL import Image
 
 from almanac import Almanac
-
-# Import your utilities
 from datetime_manager import DateTimeManager
 
 # Initialize
@@ -23,21 +21,15 @@ class ObservatoryCamera:
     def __init__(
         self,
         camera_id=0,
-        output_dir="/data/observatory/img",
         camera_name="b14m11",
         s3_bucket=None,
         cleanup_days=7,
     ):
         self.camera = asi.Camera(camera_id)
         self.camera_info = self.camera.get_camera_property()
-        self.output_dir = output_dir
         self.camera_name = camera_name
         self.s3_bucket = s3_bucket
         self.cleanup_days = cleanup_days
-
-        # Create output directories
-        os.makedirs(self.output_dir, exist_ok=True)
-        os.makedirs(os.path.join(self.output_dir, "archive"), exist_ok=True)
 
         # Initialize time management and almanac
         self.dt_manager = DateTimeManager(mode="real", timezone_str="America/Santiago")
@@ -45,14 +37,15 @@ class ObservatoryCamera:
         self.almanac = None
         self.update_almanac()
 
-        # Initialize S3 client if bucket specified
+        # Initialize S3 client
         self.s3_client = None
         if s3_bucket:
             try:
                 self.s3_client = boto3.client("s3")
                 print(f"S3 bucket configured: {s3_bucket}")
             except NoCredentialsError:
-                print("S3 credentials not found - timelapse archiving disabled")
+                print("S3 credentials not found - cannot upload images")
+                return
 
         print(f"Using camera: {self.camera_info['Name']}")
         self.print_schedule()
@@ -91,74 +84,59 @@ class ObservatoryCamera:
 
         # Handle morning twilight back to day
         if current_time > self.almanac.sunrise:
-            # Full daytime - roof closed, minimal settings
             return {
                 "exposure": 658 * u.microsecond,
                 "gain": 255,
                 "interval": 1 * u.hour,
                 "mode": "day_closed",
-                "save_timelapse": False,
             }
 
         elif current_time > self.almanac.twilight_12_deg["morning"]:
-            # Morning 12° to sunrise - bright morning twilight
             return {
                 "exposure": 1 * u.second,
                 "gain": 100,
                 "interval": 2 * u.minute,
                 "mode": "morning_bright_twilight",
-                "save_timelapse": False,
             }
 
         elif current_time > self.almanac.twilight_18_deg["morning"]:
-            # Morning 18° to 12° twilight
             return {
                 "exposure": 5 * u.second,
                 "gain": 250,
                 "interval": 90 * u.second,
                 "mode": "morning_dark_twilight",
-                "save_timelapse": True,
             }
 
-        # Evening schedule
         elif current_time < self.almanac.sunset:
-            # Before sunset - daytime (roof open)
             return {
                 "exposure": 658 * u.microsecond,
                 "gain": 255,
                 "interval": 1 * u.hour,
                 "mode": "day_open",
-                "save_timelapse": False,
             }
 
         elif current_time < self.almanac.twilight_12_deg["evening"]:
-            # Sunset to 12° twilight
             return {
                 "exposure": 1 * u.second,
                 "gain": 100,
                 "interval": 2 * u.minute,
                 "mode": "evening_bright_twilight",
-                "save_timelapse": False,
             }
 
         elif current_time < self.almanac.twilight_18_deg["evening"]:
-            # 12° to 18° twilight
             return {
                 "exposure": 5 * u.second,
                 "gain": 250,
                 "interval": 90 * u.second,
                 "mode": "evening_dark_twilight",
-                "save_timelapse": True,
             }
 
         else:
-            # Past 18° twilight - full dark
             return {
                 "exposure": 10 * u.second,
                 "gain": 420,
                 "interval": 55 * u.second,
                 "mode": "dark",
-                "save_timelapse": True,
             }
 
     def capture_image(self, exposure, gain):
@@ -167,7 +145,6 @@ class ObservatoryCamera:
             exposure_us = int(exposure.to(u.microsecond).value)
             print(f"Setting exposure to {exposure_us} microseconds, gain {gain}")
 
-            # Set camera settings
             self.camera.set_control_value(asi.ASI_EXPOSURE, exposure_us)
             self.camera.set_control_value(asi.ASI_GAIN, gain)
             self.camera.set_image_type(asi.ASI_IMG_RAW8)
@@ -175,17 +152,15 @@ class ObservatoryCamera:
             print("Starting exposure...")
             self.camera.start_exposure()
 
-            # For very short exposures, we need more buffer time for camera processing
             exposure_seconds = exposure.to(u.second).value
-            if exposure_seconds < 0.01:  # Less than 10ms
-                wait_time = 0.5  # Give it 500ms for very short exposures
+            if exposure_seconds < 0.01:
+                wait_time = 0.5
             else:
                 wait_time = exposure_seconds + 0.1
 
             print(f"Waiting {wait_time} seconds...")
             time.sleep(wait_time)
 
-            # Poll the status until it's ready
             max_attempts = 20
             for attempt in range(max_attempts):
                 status = self.camera.get_exposure_status()
@@ -199,7 +174,7 @@ class ObservatoryCamera:
                     return None
                 elif status == asi.ASI_EXP_WORKING:
                     print("Still working... waiting more")
-                    time.sleep(0.1)  # Wait another 100ms
+                    time.sleep(0.1)
                 else:
                     print(f"Unknown status: {status}")
                     time.sleep(0.1)
@@ -214,40 +189,30 @@ class ObservatoryCamera:
             traceback.print_exc()
             return None
 
-    def save_image(self, image_data, settings):
-        """Save image data as PNG"""
+    def save_image_to_s3(self, image_data, settings):
+        """Save image directly to S3 in all formats"""
         try:
-            # Handle different data types from camera
+            # Process image data
             if isinstance(image_data, bytearray):
-                # Convert bytearray to numpy array
                 image_array = np.frombuffer(image_data, dtype=np.uint8)
-                # For ASI178MM, need to reshape based on camera resolution
-                # Check camera info for dimensions
                 camera_info = self.camera.get_camera_property()
                 height = camera_info["MaxHeight"]
                 width = camera_info["MaxWidth"]
 
-                # Check if we need to account for binning or ROI
                 try:
                     current_roi = self.camera.get_roi()
                     if current_roi:
-                        width, height = (
-                            current_roi[2],
-                            current_roi[3],
-                        )  # width, height from ROI
+                        width, height = current_roi[2], current_roi[3]
                 except:
-                    pass  # Use max dimensions if can't get ROI
+                    pass
 
                 print(f"Reshaping {len(image_array)} bytes to {width}x{height}")
 
-                # Try to reshape - may need adjustment based on actual image size
                 try:
                     normalized = image_array.reshape((height, width))
                 except ValueError as e:
                     print(f"Reshape failed: {e}")
-                    # Calculate actual dimensions from data size
                     total_pixels = len(image_array)
-                    # Assume square-ish aspect ratio if reshape fails
                     estimated_width = int(np.sqrt(total_pixels))
                     estimated_height = total_pixels // estimated_width
                     print(
@@ -258,7 +223,6 @@ class ObservatoryCamera:
                     )
 
             elif isinstance(image_data, np.ndarray):
-                # Already a numpy array
                 if image_data.dtype != np.uint8:
                     normalized = (
                         (image_data - image_data.min())
@@ -267,74 +231,141 @@ class ObservatoryCamera:
                     ).astype(np.uint8)
                 else:
                     normalized = image_data
-
             else:
                 print(f"Unexpected data type: {type(image_data)}")
                 return
 
-            # Create PIL image
-            img = Image.fromarray(normalized)
+            # Create PIL images - full resolution and thumbnailed
+            img_full = Image.fromarray(normalized)
+            img_thumb = img_full.copy()
+
+            # Thumbnail only the WebP and JPEG versions
             if normalized.shape[0] > 1500 or normalized.shape[1] > 2000:
-                img.thumbnail((2000, 1500), Image.Resampling.LANCZOS)
+                img_thumb.thumbnail((2000, 1500), Image.Resampling.LANCZOS)
+                print(
+                    f"Thumbnailed from {img_full.size} to {img_thumb.size} for WebP/JPEG"
+                )
 
-            # Always save/overwrite the main image for the website
-            main_filename = os.path.join(self.output_dir, f"{self.camera_name}.webp")
-            img.save(
-                main_filename,
-                format="WebP",
-                quality=75,  # Good quality/size balance
-                method=6,
-            )  # Best compression
+            # Create safe timestamp for filename
+            timestamp = self.dt_manager.get_current_time()
+            safe_timestamp = timestamp.strftime("%Y%m%d_%H%M%S")
 
-            # Also save as JPEG fallback for compatibility
-            jpeg_filename = os.path.join(self.output_dir, f"{self.camera_name}.jpg")
-            img.save(
-                jpeg_filename,
-                format="JPEG",
-                quality=80,  # Good quality
-                optimize=True,
+            # Create temporary files
+            temp_webp = f"/tmp/{self.camera_name}-{safe_timestamp}.webp"
+            temp_jpg = f"/tmp/{self.camera_name}-{safe_timestamp}.jpg"
+            temp_png = f"/tmp/{self.camera_name}-{safe_timestamp}.png"
+
+            # Save in all formats - PNG at full resolution, others thumbnailed
+            img_thumb.save(temp_webp, format="WebP", quality=75, method=6)
+            img_thumb.save(temp_jpg, format="JPEG", quality=80, optimize=True)
+            img_full.save(temp_png, format="PNG")  # Full resolution PNG
+
+            print(f"Saved WebP/JPEG at {img_thumb.size}, PNG at {img_full.size}")
+
+            # Upload timestamped versions to S3
+            self.upload_file_to_s3(
+                temp_webp, f"{self.camera_name}-{safe_timestamp}.webp"
+            )
+            self.upload_file_to_s3(temp_jpg, f"{self.camera_name}-{safe_timestamp}.jpg")
+            self.upload_file_to_s3(temp_png, f"{self.camera_name}-{safe_timestamp}.png")
+
+            # Copy to latest versions using S3
+            self.copy_to_latest(
+                f"{self.camera_name}-{safe_timestamp}.webp", "latest.webp"
+            )
+            self.copy_to_latest(
+                f"{self.camera_name}-{safe_timestamp}.jpg", "latest.jpg"
+            )
+            self.copy_to_latest(
+                f"{self.camera_name}-{safe_timestamp}.png", "latest.png"
             )
 
-            self.save_status_info(settings)
+            # Upload status file
+            self.save_status_to_s3(settings, timestamp)
 
-            # Save timestamped archive for timelapse (only during night)
-            if settings["save_timelapse"]:
-                timestamp = self.dt_manager.get_current_time()
-                archive_filename = os.path.join(
-                    self.output_dir,
-                    "archive",
-                    f"{self.camera_name}_{timestamp.strftime('%Y%m%d_%H%M%S')}_{settings['mode']}.png",
-                )
-                img.save(archive_filename, format="PNG")
+            # Clean up temp files
+            os.remove(temp_webp)
+            os.remove(temp_jpg)
+            os.remove(temp_png)
 
-                # Also upload to S3 for timelapse storage
-                if self.s3_client and self.s3_bucket:
-                    self.upload_to_s3(archive_filename, timestamp)
-            self.deploy_to_github()
-            # Format exposure for display
             exposure_display = self._format_exposure_for_display(settings["exposure"])
             print(
-                f"Saved {main_filename} ({settings['mode']}: {exposure_display}, gain {settings['gain']})"
+                f"Uploaded to S3: {self.camera_name}-{safe_timestamp} ({settings['mode']}: {exposure_display}, gain {settings['gain']})"
             )
 
         except Exception as e:
-            print(f"Error saving image: {e}")
+            print(f"Error saving image to S3: {e}")
             import traceback
 
             traceback.print_exc()
 
-    def save_status_info(self, settings):
-        """Save status information to a JSON file for the website"""
+    def upload_file_to_s3(self, local_path, s3_key):
+        """Upload a file to S3"""
         try:
-            current_time = self.dt_manager.get_current_time()
+            # Determine content type based on extension
+            if s3_key.endswith(".webp"):
+                content_type = "image/webp"
+            elif s3_key.endswith(".jpg"):
+                content_type = "image/jpeg"
+            elif s3_key.endswith(".png"):
+                content_type = "image/png"
+            elif s3_key.endswith(".json"):
+                content_type = "application/json"
+            else:
+                content_type = "binary/octet-stream"
 
+            self.s3_client.upload_file(
+                local_path,
+                self.s3_bucket,
+                s3_key,
+                ExtraArgs={
+                    "ContentType": content_type,
+                    "ACL": "public-read",
+                    "CacheControl": "max-age=60",
+                },
+            )
+            print(f"Uploaded: s3://{self.s3_bucket}/{s3_key}")
+
+        except Exception as e:
+            print(f"Failed to upload {s3_key}: {e}")
+
+    def copy_to_latest(self, source_key, dest_key):
+        """Copy a file to the 'latest' version using S3 copy"""
+        try:
+            copy_source = {"Bucket": self.s3_bucket, "Key": source_key}
+
+            # Determine content type
+            if dest_key.endswith(".webp"):
+                content_type = "image/webp"
+            elif dest_key.endswith(".jpg"):
+                content_type = "image/jpeg"
+            elif dest_key.endswith(".png"):
+                content_type = "image/png"
+            else:
+                content_type = "binary/octet-stream"
+
+            self.s3_client.copy_object(
+                CopySource=copy_source,
+                Bucket=self.s3_bucket,
+                Key=dest_key,
+                MetadataDirective="REPLACE",
+                ACL="public-read",
+                ContentType=content_type,
+                CacheControl="max-age=60",  # 1 minute cache for latest
+            )
+            print(f"Copied to latest: {dest_key}")
+
+        except Exception as e:
+            print(f"Failed to copy to {dest_key}: {e}")
+
+    def save_status_to_s3(self, settings, timestamp):
+        """Save status information directly to S3"""
+        try:
             # Create status description based on mode
             if settings["mode"] == "day_closed":
                 description = (
                     "Observatory closed during daytime. Images update every hour."
                 )
-            elif settings["mode"] == "day_open":
-                description = "Daytime observing. Images update every hour."
             elif settings["mode"] in [
                 "evening_bright_twilight",
                 "morning_bright_twilight",
@@ -343,14 +374,14 @@ class ObservatoryCamera:
             elif settings["mode"] in ["evening_dark_twilight", "morning_dark_twilight"]:
                 description = "Deep twilight. Images update every 90 seconds."
             elif settings["mode"] == "dark":
-                description = "Dark sky observing. Images update every 55 seconds."
+                description = "Dark sky observing. Images update every 60 seconds."
             else:
                 description = f"Observatory operating in {settings['mode']} mode."
 
             status_data = {
                 "camera_name": self.camera_name,
-                "last_update": current_time.isoformat(),
-                "last_update_friendly": current_time.strftime("%Y-%m-%d %H:%M:%S %Z"),
+                "last_update": timestamp.isoformat(),
+                "last_update_friendly": timestamp.strftime("%Y-%m-%d %H:%M:%S %Z"),
                 "mode": settings["mode"],
                 "description": description,
                 "exposure_time": str(settings["exposure"]),
@@ -359,17 +390,16 @@ class ObservatoryCamera:
                 "status": "online",
             }
 
-            # Save to JSON file
-            status_file = os.path.join(
-                self.output_dir, f"{self.camera_name}_status.json"
-            )
-            with open(status_file, "w") as f:
+            # Save to temp file and upload
+            temp_status = f"/tmp/{self.camera_name}_status.json"
+            with open(temp_status, "w") as f:
                 json.dump(status_data, f, indent=2)
 
-            print(f"Updated status file: {status_file}")
+            self.upload_file_to_s3(temp_status, f"{self.camera_name}_status.json")
+            os.remove(temp_status)
 
         except Exception as e:
-            print(f"Error saving status: {e}")
+            print(f"Error saving status to S3: {e}")
 
     def _format_exposure_for_display(self, exposure):
         """Format exposure time for human-readable display"""
@@ -380,140 +410,70 @@ class ObservatoryCamera:
         else:
             return f"{exposure.to(u.microsecond):.0f}"
 
-    def upload_to_s3(self, local_filename, timestamp):
-        """Upload image to S3 for timelapse archive"""
-        try:
-            date_str = timestamp.strftime("%Y-%m-%d")
-            s3_key = (
-                f"observatory-timelapse/{date_str}/{os.path.basename(local_filename)}"
-            )
-
-            self.s3_client.upload_file(local_filename, self.s3_bucket, s3_key)
-            print(f"Uploaded to S3: s3://{self.s3_bucket}/{s3_key}")
-
-        except Exception as e:
-            print(f"Failed to upload to S3: {e}")
-
     def cleanup_old_files(self):
-        """Clean up old archive files"""
+        """Clean up old timestamped files from S3"""
         try:
-            cutoff_date = self.dt_manager.get_current_time() - datetime.timedelta(
+            cutoff_time = self.dt_manager.get_current_time() - datetime.timedelta(
                 days=self.cleanup_days
             )
-            archive_dir = os.path.join(self.output_dir, "archive")
+            cutoff_str = cutoff_time.strftime("%Y%m%d_%H%M%S")
+
+            # List objects with the camera name prefix
+            response = self.s3_client.list_objects_v2(
+                Bucket=self.s3_bucket, Prefix=f"{self.camera_name}-"
+            )
+
+            if "Contents" not in response:
+                return
 
             deleted_count = 0
-            for filename in os.listdir(archive_dir):
-                if filename.endswith(".png"):
-                    file_path = os.path.join(archive_dir, filename)
-                    file_time = datetime.datetime.fromtimestamp(
-                        os.path.getctime(file_path), tz=self.dt_manager.timezone
-                    )
-
-                    if file_time < cutoff_date:
-                        os.remove(file_path)
-                        deleted_count += 1
+            for obj in response["Contents"]:
+                key = obj["Key"]
+                # Extract timestamp from filename like "b14m11-20250702_143022.webp"
+                if "-" in key and "." in key:
+                    try:
+                        timestamp_part = key.split("-")[1].split(".")[
+                            0
+                        ]  # Get "20250702_143022"
+                        if timestamp_part < cutoff_str:
+                            self.s3_client.delete_object(Bucket=self.s3_bucket, Key=key)
+                            deleted_count += 1
+                            print(f"Deleted old file: {key}")
+                    except:
+                        pass  # Skip files that don't match expected format
 
             if deleted_count > 0:
-                print(f"Cleaned up {deleted_count} old archive files")
+                print(f"Cleaned up {deleted_count} old files from S3")
 
         except Exception as e:
-            print(f"Error during cleanup: {e}")
-
-    def deploy_to_github(self):
-        """Deploy the latest image to GitHub Pages"""
-        try:
-            import os
-            import subprocess
-
-            repo_dir = "/repo"
-            token = os.getenv("GITHUB_TOKEN")
-            repo_url = os.getenv("GITHUB_REPO_URL")
-
-            if not token or not repo_url:
-                print("❌ GitHub token or repo URL not configured")
-                return
-            subprocess.run(
-                ["git", "config", "--global", "--add", "safe.directory", repo_dir],
-                capture_output=True,
-            )
-            # Configure git
-            subprocess.run(
-                [
-                    "git",
-                    "config",
-                    "user.name",
-                    os.getenv("GIT_AUTHOR_NAME", "Observatory"),
-                ],
-                cwd=repo_dir,
-            )
-            subprocess.run(
-                [
-                    "git",
-                    "config",
-                    "user.email",
-                    os.getenv("GIT_AUTHOR_EMAIL", "obs@example.com"),
-                ],
-                cwd=repo_dir,
-            )
-
-            # Set remote URL with token authentication
-            auth_url = repo_url.replace("https://", f"https://{token}@")
-            subprocess.run(
-                ["git", "remote", "set-url", "origin", auth_url], cwd=repo_dir
-            )
-
-            # Deploy with ghp-import
-            result = subprocess.run(
-                ["ghp-import", "-p", "html/"],
-                cwd=repo_dir,
-                capture_output=True,
-                text=True,
-                timeout=60,  # 60 second timeout
-            )
-
-            if result.returncode == 0:
-                print("✅ Successfully deployed to GitHub Pages")
-            else:
-                print(f"❌ Deploy failed: {result.stderr}")
-
-        except subprocess.TimeoutExpired:
-            print("❌ Deploy timed out")
-        except Exception as e:
-            print(f"❌ Error deploying: {e}")
+            print(f"Error during S3 cleanup: {e}")
 
     def run_continuous(self):
         """Main capture loop"""
-        # Fix: Use timezone-aware datetime instead of datetime.min
         last_cleanup = self.dt_manager.get_current_time() - datetime.timedelta(days=1)
 
         try:
             while True:
-                # Update almanac if date changed
                 self.update_almanac()
 
-                # Cleanup old files once per day
                 current_time = self.dt_manager.get_current_time()
                 if (current_time - last_cleanup).days >= 1:
                     self.cleanup_old_files()
                     last_cleanup = current_time
 
-                # Get current settings
                 settings = self.get_camera_settings()
 
                 print(
                     f"\n{current_time.strftime('%Y-%m-%d %H:%M:%S')} - Mode: {settings['mode']}"
                 )
 
-                # Capture and save image
                 image_data = self.capture_image(settings["exposure"], settings["gain"])
 
                 if image_data is not None:
-                    self.save_image(image_data, settings)
+                    self.save_image_to_s3(image_data, settings)
                 else:
                     print("Failed to capture image")
 
-                # Wait until next capture (convert interval to seconds)
                 interval_seconds = settings["interval"].to(u.second).value
                 print(f"Waiting {settings['interval']} until next capture...")
                 time.sleep(interval_seconds)
@@ -531,13 +491,11 @@ def main():
         print("No cameras found")
         return
 
-    # Configuration
     obs_camera = ObservatoryCamera(
         camera_id=0,
-        output_dir="/repo/html/img",
         camera_name="b14m11",
-        s3_bucket=None,  # Set to None to disable S3
-        cleanup_days=1,
+        s3_bucket="mothra-webcams",  # Remove the s3:// prefix
+        cleanup_days=7,
     )
 
     obs_camera.run_continuous()
