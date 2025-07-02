@@ -365,7 +365,10 @@ class ObservatoryCamera:
             if not token or not repo_url:
                 print("❌ GitHub token or repo URL not configured")
                 return
-
+            subprocess.run(
+                ["git", "config", "--global", "--add", "safe.directory", repo_dir],
+                capture_output=True,
+            )
             # Configure git
             subprocess.run(
                 [
