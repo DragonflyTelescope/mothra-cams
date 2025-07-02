@@ -138,11 +138,19 @@ class ObservatoryCamera:
         ).total_seconds() / 60 > 10:
             return {
                 "exposure": 1 * u.second,
-                "gain": 100,
+                "gain": 200,
                 "interval": 2 * u.minute,
                 "mode": "evening_bright_twilight",
             }
-
+        elif (
+            self.almanac.twilight_12_deg["evening"] - current_time
+        ).total_seconds() / 60 < 10:
+            return {
+                "exposure": 2 * u.second,
+                "gain": 300,
+                "interval": 2 * u.minute,
+                "mode": "evening_dark_twilight",
+            }
         elif current_time < self.almanac.twilight_18_deg["evening"]:
             return {
                 "exposure": 1 * u.second,
