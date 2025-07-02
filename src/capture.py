@@ -81,7 +81,12 @@ class ObservatoryCamera:
     def get_camera_settings(self):
         """Determine camera settings based on current time"""
         current_time = self.dt_manager.get_current_time()
-
+        dt_12deg = (
+            self.almanac.twilight_12_deg["evening"] - current_time
+        ).total_seconds() / 60
+        dt_18deg = (
+            self.almanac.twilight_18_deg["evening"] - current_time
+        ).total_seconds() / 60
         # Handle morning twilight back to day
         if current_time > self.almanac.sunrise:
             return {
@@ -142,19 +147,32 @@ class ObservatoryCamera:
                 "interval": 2 * u.minute,
                 "mode": "evening_bright_twilight",
             }
-        elif (
-            self.almanac.twilight_12_deg["evening"] - current_time
-        ).total_seconds() / 60 < 10:
+        elif dt_12deg < 10 and dt_12deg > 0:
             return {
                 "exposure": 2 * u.second,
                 "gain": 300,
                 "interval": 2 * u.minute,
                 "mode": "evening_dark_twilight",
             }
+        elif dt_12deg < 10 and dt_12deg > 0:
+            return {
+                "exposure": 2 * u.second,
+                "gain": 300,
+                "interval": 2 * u.minute,
+                "mode": "evening_dark_twilight",
+            }
+        elif dt_18deg > 20:
+            return {
+                "exposure": 5 * u.second,
+                "gain": 300,
+                "interval": 2 * u.minute,
+                "mode": "evening_dark_twilight",
+            }
+
         elif current_time < self.almanac.twilight_18_deg["evening"]:
             return {
-                "exposure": 1 * u.second,
-                "gain": 100,
+                "exposure": 10 * u.second,
+                "gain": 340,
                 "interval": 90 * u.second,
                 "mode": "evening_dark_twilight",
             }
