@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>MothraCameras</title>
+    <title>🔭 Mothra Webcams</title>
     <style>
         body {
             font-family: 'Segoe UI', Arial, sans-serif;
@@ -28,7 +28,7 @@
         
         .cameras-grid {
             display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
+            grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
             gap: 20px;
             margin-bottom: 30px;
         }
@@ -42,8 +42,7 @@
             transition: all 0.3s ease;
             text-decoration: none;
             color: inherit;
-            display: flex;
-            flex-direction: column;
+            display: block;
         }
         
         .camera-card:hover {
@@ -61,25 +60,17 @@
         
         .camera-image {
             width: 100%;
-            height: auto;  /* Changed from fixed height to auto */
-            min-height: 200px;  /* Minimum height for consistency */
-            object-fit: contain;
+            height: auto;
             border-radius: 10px;
             border: 2px solid rgba(255, 255, 255, 0.2);
-            transition: opacity 0.3s ease;
             background: #000;
-            flex-grow: 1;  /* Allow image to grow within the card */
-        }
-        
-        .camera-image.loading {
-            opacity: 0.7;
         }
         
         .camera-status {
             display: flex;
             align-items: center;
             justify-content: center;
-            margin-top: 10px;
+            margin-top: 15px;
             font-size: 0.9em;
         }
         
@@ -93,11 +84,6 @@
             animation: pulse 2s infinite;
         }
         
-        .status-indicator.error {
-            background: #ff4444;
-            animation: none;
-        }
-        
         @keyframes pulse {
             0% { opacity: 1; }
             50% { opacity: 0.5; }
@@ -107,287 +93,50 @@
         .last-update {
             text-align: center;
             color: #888;
-            font-size: 0.8em;
+            font-size: 0.9em;
             margin-top: 20px;
-        }
-        
-        .loading-message {
-            text-align: center;
-            color: #888;
-            font-style: italic;
-            margin: 40px 0;
-        }
-
-        /* Single camera view styles */
-        .single-camera {
-            text-align: center;
-        }
-        
-        .back-link {
-            display: inline-block;
-            margin-bottom: 20px;
-            color: #7dd3fc;
-            text-decoration: none;
-            font-size: 1.1em;
-        }
-        
-        .back-link:hover {
-            text-decoration: underline;
-        }
-        
-        .single-camera .camera-image {
-            max-width: 100%;
-            max-height: 70vh;
-            height: auto;
-            width: auto;
-        }
-        
-        .camera-info {
-            background: rgba(255, 255, 255, 0.1);
-            border-radius: 10px;
-            padding: 20px;
-            margin: 20px auto;
-            max-width: 600px;
-            backdrop-filter: blur(10px);
-        }
-        
-        .refresh-info {
-            margin-top: 20px;
-            font-size: 0.8em;
-            color: #888;
-            text-align: center;
         }
     </style>
 </head>
 <body>
     <div class="container">
-        <h1 id="page-title">MothraCameras</h1>
+        <h1>🔭 Mothra Webcams</h1>
         
-        <div id="content">
-            <div class="loading-message">Loading cameras...</div>
+        <div class="cameras-grid">
+            <!-- B14M11 Camera -->
+            <a href="b14m11.html" class="camera-card">
+                <div class="camera-title">🔭 B14M11</div>
+                <img class="camera-image" src="img/b14m11.png" alt="B14M11 Camera">
+                <div class="camera-status">
+                    <span class="status-indicator"></span>
+                    <span>Online</span>
+                </div>
+            </a>
         </div>
         
         <div class="last-update" id="last-update"></div>
     </div>
 
     <script>
-        // Configuration - only check cameras that likely exist for faster loading
-        const CAMERA_LIST = [
-            // Active cameras (check these first)
-            'b14m11',
-        ];
-        
-        const REFRESH_INTERVAL = 60000; // 1 minute
-        let refreshInterval;
-        let imageStatuses = {};
-        
-        function getUrlParams() {
-            const params = new URLSearchParams(window.location.search);
-            return {
-                camera: params.get('camera')
-            };
-        }
-        
-        function formatCameraName(filename) {
-            if (filename.includes('room')) {
-                const building = filename.match(/b(\d+)/)[1];
-                return `🏠 Building ${building} Room`;
-            }
-            if (filename.startsWith('b') && filename.includes('m')) {
-                const matches = filename.match(/b(\d+)m(\d+)/);
-                if (matches) {
-                    const building = matches[1];
-                    const mount = matches[2];
-                    return `🔭 B${building}M${mount}`;
-                }
-            }
-            return filename.charAt(0).toUpperCase() + filename.slice(1);
-        }
-        
-        function updateTimestamp() {
-            const now = new Date();
-            document.getElementById('last-update').textContent = 
-                `Last updated: ${now.toLocaleTimeString()}`;
-        }
-        
-        function checkImageExists(filename) {
-            return new Promise((resolve) => {
-                const img = new Image();
-                img.onload = () => resolve(true);
-                img.onerror = () => resolve(false);
-                img.src = `img/${filename}.png?t=${Date.now()}`;
-            });
-        }
-        
-        async function discoverCameras() {
-            const availableCameras = [];
-            
-            // Check cameras in parallel instead of sequentially
-            const checkPromises = CAMERA_LIST.map(async (camera) => {
-                const exists = await checkImageExists(camera);
-                return { camera, exists };
-            });
-            
-            const results = await Promise.all(checkPromises);
-            
-            results.forEach(({ camera, exists }) => {
-                if (exists) {
-                    availableCameras.push(camera);
-                    imageStatuses[camera] = 'online';
-                } else {
-                    imageStatuses[camera] = 'offline';
-                }
-            });
-            
-            return availableCameras;
-        }
-        
-        function createCameraGrid(cameras) {
-            const content = document.getElementById('content');
-            content.innerHTML = '';
-            
-            if (cameras.length === 0) {
-                content.innerHTML = '<div class="loading-message">No cameras found. Make sure image files are uploaded.</div>';
-                return;
-            }
-            
-            const grid = document.createElement('div');
-            grid.className = 'cameras-grid';
-            
-            cameras.forEach(camera => {
-                const card = document.createElement('a');
-                card.className = 'camera-card';
-                card.href = `?camera=${camera}`;
-                
-                card.innerHTML = `
-                    <div class="camera-title">${formatCameraName(camera)}</div>
-                    <img class="camera-image" src="img/${camera}.png?t=${Date.now()}" 
-                         alt="${formatCameraName(camera)}" 
-                         onload="imageLoaded('${camera}')" 
-                         onerror="imageError('${camera}')">
-                    <div class="camera-status">
-                        <span class="status-indicator" id="indicator-${camera}"></span>
-                        <span id="status-${camera}">Loading...</span>
-                    </div>
-                `;
-                
-                grid.appendChild(card);
-            });
-            
-            content.appendChild(grid);
-        }
-        
-        function createSingleCameraView(camera) {
-            document.getElementById('page-title').textContent = formatCameraName(camera);
-            
-            const content = document.getElementById('content');
-            content.innerHTML = `
-                <div class="single-camera">
-                    <a href="." class="back-link">← Back to All Cameras</a>
-                    
-                    <div class="camera-info">
-                        <div class="camera-status">
-                            <span class="status-indicator" id="indicator-${camera}"></span>
-                            <span id="status-${camera}">Loading...</span>
-                        </div>
-                    </div>
-                    
-                    <img class="camera-image" id="main-image" 
-                         src="${camera}.png?t=${Date.now()}" 
-                         alt="${formatCameraName(camera)}"
-                         onload="imageLoaded('${camera}')" 
-                         onerror="imageError('${camera}')">
-                    
-                    <div class="refresh-info">
-                        Auto-refreshing every 60 seconds • GitHub Pages deployment may take 1-5 minutes
-                    </div>
-                </div>
-            `;
-        }
-        
-        function imageLoaded(camera) {
-            const indicator = document.getElementById(`indicator-${camera}`);
-            const status = document.getElementById(`status-${camera}`);
-            
-            if (indicator) indicator.className = 'status-indicator';
-            if (status) status.textContent = 'Online';
-            imageStatuses[camera] = 'online';
-        }
-        
-        function imageError(camera) {
-            const indicator = document.getElementById(`indicator-${camera}`);
-            const status = document.getElementById(`status-${camera}`);
-            
-            if (indicator) indicator.className = 'status-indicator error';
-            if (status) status.textContent = 'Offline';
-            imageStatuses[camera] = 'offline';
-        }
-        
+        // Simple auto-refresh of images
         function refreshImages() {
-            const params = getUrlParams();
+            const images = document.querySelectorAll('.camera-image');
             const timestamp = Date.now();
             
-            if (params.camera) {
-                // Single camera view
-                const img = document.getElementById('main-image');
-                if (img) {
-                    img.classList.add('loading');
-                    img.src = `img/${params.camera}.png?t=${timestamp}`;
-                }
-            } else {
-                // Grid view
-                const images = document.querySelectorAll('.camera-image');
-                images.forEach(img => {
-                    img.classList.add('loading');
-                    const src = img.src.split('?')[0]; // Remove old timestamp
-                    img.src = `${src}?t=${timestamp}`;
-                });
-            }
+            images.forEach(img => {
+                const src = img.src.split('?')[0];
+                img.src = `${src}?t=${timestamp}`;
+            });
             
-            updateTimestamp();
+            document.getElementById('last-update').textContent = 
+                `Last updated: ${new Date().toLocaleTimeString()}`;
         }
         
-        async function initializePage() {
-            const params = getUrlParams();
-            
-            if (params.camera) {
-                // Single camera view - check if this specific camera exists
-                createSingleCameraView(params.camera);
-                
-                // Check if the camera image exists
-                const exists = await checkImageExists(params.camera);
-                imageStatuses[params.camera] = exists ? 'online' : 'offline';
-                
-                // Update the status display
-                if (exists) {
-                    imageLoaded(params.camera);
-                } else {
-                    imageError(params.camera);
-                }
-            } else {
-                // Grid view - discover available cameras
-                const cameras = await discoverCameras();
-                createCameraGrid(cameras);
-            }
-            
-            updateTimestamp();
-            
-            // Set up auto-refresh
-            refreshInterval = setInterval(refreshImages, REFRESH_INTERVAL);
-        }
+        // Initial update
+        refreshImages();
         
-        // Handle visibility change to pause/resume refresh
-        document.addEventListener('visibilitychange', function() {
-            if (document.hidden) {
-                clearInterval(refreshInterval);
-            } else {
-                refreshInterval = setInterval(refreshImages, REFRESH_INTERVAL);
-                refreshImages(); // Immediate refresh when page becomes visible
-            }
-        });
-        
-        // Initialize the page
-        initializePage();
+        // Auto-refresh every 60 seconds
+        setInterval(refreshImages, 60000);
     </script>
 </body>
 </html>

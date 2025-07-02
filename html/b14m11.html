@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>🔭 B14M11 Camera</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Arial, sans-serif;
+            background: linear-gradient(135deg, #0c0c1e, #1a1a3a);
+            color: #e0e0e0;
+            margin: 0;
+            padding: 20px;
+            min-height: 100vh;
+        }
+        
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            text-align: center;
+        }
+        
+        h1 {
+            font-size: 2.5em;
+            margin-bottom: 20px;
+            text-shadow: 0 0 20px rgba(255, 255, 255, 0.3);
+        }
+        
+        .back-link {
+            display: inline-block;
+            margin-bottom: 20px;
+            color: #7dd3fc;
+            text-decoration: none;
+            font-size: 1.1em;
+        }
+        
+        .back-link:hover {
+            text-decoration: underline;
+        }
+        
+        .camera-info {
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 15px;
+            padding: 20px;
+            margin: 20px auto;
+            max-width: 600px;
+            backdrop-filter: blur(10px);
+        }
+        
+        .camera-image {
+            max-width: 100%;
+            max-height: 70vh;
+            border: 3px solid rgba(255, 255, 255, 0.2);
+            border-radius: 15px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+            background: #000;
+        }
+        
+        .camera-status {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 15px 0;
+            font-size: 1.1em;
+        }
+        
+        .status-indicator {
+            display: inline-block;
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            background: #4CAF50;
+            margin-right: 10px;
+            animation: pulse 2s infinite;
+        }
+        
+        @keyframes pulse {
+            0% { opacity: 1; }
+            50% { opacity: 0.5; }
+            100% { opacity: 1; }
+        }
+        
+        .refresh-info {
+            margin-top: 20px;
+            font-size: 0.9em;
+            color: #888;
+        }
+        
+        .last-update {
+            color: #aaa;
+            font-size: 0.9em;
+            margin-top: 15px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔭 B14M11</h1>
+        
+        <a href="index.html" class="back-link">← Back to All Cameras</a>
+        
+        <div class="camera-info">
+            <div class="camera-status">
+                <span class="status-indicator"></span>
+                <span>Online</span>
+            </div>
+        </div>
+        
+        <img class="camera-image" id="main-image" src="img/b14m11.png" alt="B14M11 Camera">
+        
+        <div class="refresh-info">
+            Auto-refreshing every 60 seconds • GitHub Pages deployment may take 1-5 minutes
+        </div>
+        
+        <div class="last-update" id="last-update"></div>
+    </div>
+
+    <script>
+        function refreshImage() {
+            const img = document.getElementById('main-image');
+            const timestamp = Date.now();
+            const src = img.src.split('?')[0];
+            img.src = `${src}?t=${timestamp}`;
+            
+            document.getElementById('last-update').textContent = 
+                `Last updated: ${new Date().toLocaleTimeString()}`;
+        }
+        
+        // Initial update
+        refreshImage();
+        
+        // Auto-refresh every 60 seconds
+        setInterval(refreshImage, 60000);
+    </script>
+</body>
+</html>
