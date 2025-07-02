@@ -161,30 +161,57 @@ class ObservatoryCamera:
             }
 
     def capture_image(self, exposure, gain):
-        """Capture a single image with specified settings
-
-        Args:
-            exposure: astropy Quantity with time units
-            gain: integer gain value
-        """
+        """Capture a single image with specified settings"""
         try:
             # Convert exposure to microseconds for ZWO API
             exposure_us = int(exposure.to(u.microsecond).value)
+            print(f"Setting exposure to {exposure_us} microseconds, gain {gain}")
+
+            # Check current camera settings before changing
+            try:
+                current_exp = self.camera.get_control_value(asi.ASI_EXPOSURE)
+                current_gain = self.camera.get_control_value(asi.ASI_GAIN)
+                print(
+                    f"Current settings - Exposure: {current_exp}, Gain: {current_gain}"
+                )
+            except Exception as e:
+                print(f"Couldn't read current settings: {e}")
 
             # Set camera settings
             self.camera.set_control_value(asi.ASI_EXPOSURE, exposure_us)
             self.camera.set_control_value(asi.ASI_GAIN, gain)
             self.camera.set_image_type(asi.ASI_IMG_RAW8)
 
-            # Start exposure
+            # Verify settings were applied
+            try:
+                new_exp = self.camera.get_control_value(asi.ASI_EXPOSURE)
+                new_gain = self.camera.get_control_value(asi.ASI_GAIN)
+                print(f"After setting - Exposure: {new_exp}, Gain: {new_gain}")
+            except Exception as e:
+                print(f"Couldn't verify settings: {e}")
+
+            print("Starting exposure...")
             self.camera.start_exposure()
 
-            # Wait for exposure to complete (convert to seconds for sleep)
-            wait_time = exposure.to(u.second).value + 0.1  # exposure + buffer
+            # Wait for exposure
+            wait_time = max(exposure.to(u.second).value, 0.001) + 0.1
+            print(f"Waiting {wait_time} seconds...")
             time.sleep(wait_time)
 
-            # Check if exposure succeeded
+            # Check status
             status = self.camera.get_exposure_status()
+            print(
+                f"Exposure status: {status} (ASI_EXP_SUCCESS = {asi.ASI_EXP_SUCCESS})"
+            )
+
+            # Let's also check what other status codes mean
+            if hasattr(asi, "ASI_EXP_IDLE"):
+                print(f"ASI_EXP_IDLE = {asi.ASI_EXP_IDLE}")
+            if hasattr(asi, "ASI_EXP_WORKING"):
+                print(f"ASI_EXP_WORKING = {asi.ASI_EXP_WORKING}")
+            if hasattr(asi, "ASI_EXP_FAILED"):
+                print(f"ASI_EXP_FAILED = {asi.ASI_EXP_FAILED}")
+
             if status == asi.ASI_EXP_SUCCESS:
                 return self.camera.get_data_after_exposure()
             else:
@@ -193,6 +220,9 @@ class ObservatoryCamera:
 
         except Exception as e:
             print(f"Error during capture: {e}")
+            import traceback
+
+            traceback.print_exc()
             return None
 
     def save_image(self, image_data, settings):
