@@ -271,7 +271,7 @@ class ObservatoryCamera:
                 return
 
             # Create PIL image
-            img = Image.fromarray(normalized, mode="L")  # Grayscale
+            img = Image.fromarray(normalized)
 
             # Always save/overwrite the main image for the website
             main_filename = os.path.join(self.output_dir, f"{self.camera_name}.png")
@@ -290,7 +290,7 @@ class ObservatoryCamera:
                 # Also upload to S3 for timelapse storage
                 if self.s3_client and self.s3_bucket:
                     self.upload_to_s3(archive_filename, timestamp)
-
+            self.deploy_to_github()
             # Format exposure for display
             exposure_display = self._format_exposure_for_display(settings["exposure"])
             print(

@@ -24,5 +24,6 @@ RUN mkdir -p /mothra/webcam/
 # Update library cache
 RUN ldconfig
 
-# Fix the CMD - should match your actual filename
-CMD ["python", "capture.py"]
+ENV PYTHONUNBUFFERED=1
+
+CMD ["python", "-u", "capture.py"]
