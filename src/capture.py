@@ -389,7 +389,9 @@ class ObservatoryCamera:
             with open(temp_status, "w") as f:
                 json.dump(status_data, f, indent=2)
 
-            self.upload_file_to_s3(temp_status, f"{self.camera_name}_status.json")
+            self.upload_file_to_s3(
+                temp_status, f"{self.camera_name}/{self.camera_name}_status.json"
+            )
             os.remove(temp_status)
 
         except Exception as e:
