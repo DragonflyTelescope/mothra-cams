@@ -173,6 +173,16 @@
             images.forEach(img => {
                 const src = img.src.split('?')[0];
                 img.src = `${src}?t=${timestamp}`;
+                
+                // Also update the WebP source if it exists
+                const picture = img.parentElement;
+                if (picture.tagName === 'PICTURE') {
+                    const webpSource = picture.querySelector('source[type="image/webp"]');
+                    if (webpSource) {
+                        const webpSrc = webpSource.srcset.split('?')[0];
+                        webpSource.srcset = `${webpSrc}?t=${timestamp}`;
+                    }
+                }
             });
             
             // Update status when refreshing images

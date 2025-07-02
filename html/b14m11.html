@@ -166,8 +166,8 @@
         </div>
         
         <picture>
-            <source srcset="img/b14m11.webp" type="image/webp">
-            <img class="camera-image" src="img/b14m11.jpg" alt="B14M11 Camera">
+            <source srcset="img/b14m11.webp" type="image/webp" id="main-webp-source">
+            <img class="camera-image" id="main-image" src="img/b14m11.jpg" alt="B14M11 Camera">
         </picture>
         
         <div class="refresh-info">
@@ -223,9 +223,18 @@
         
         function refreshImage() {
             const img = document.getElementById('main-image');
+            const webpSource = document.getElementById('main-webp-source');
             const timestamp = Date.now();
-            const src = img.src.split('?')[0];
-            img.src = `${src}?t=${timestamp}`;
+            
+            if (img) {
+                const src = img.src.split('?')[0];
+                img.src = `${src}?t=${timestamp}`;
+            }
+            
+            if (webpSource) {
+                const webpSrc = webpSource.srcset.split('?')[0];
+                webpSource.srcset = `${webpSrc}?t=${timestamp}`;
+            }
             
             // Update status when refreshing image
             updateStatus();
