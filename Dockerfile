@@ -16,7 +16,7 @@ WORKDIR /app
 COPY ./ASI_linux_mac_SDK_V1.38/lib/x64/libASICamera2.so /usr/local/lib/
 
 # Copy your Python files
-COPY ./src/time.py ./src/almanac.py ./src/capture.py /app/
+COPY ./src/datetime_manager.py ./src/almanac.py ./src/capture.py /app/
 
 # Create data directory
 RUN mkdir -p /mothra/webcam/
