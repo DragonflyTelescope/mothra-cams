@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Mothra Web Cameras</title>
+    <title>Mothra Webcams</title>
     <style>
         body {
             font-family: 'Segoe UI', Arial, sans-serif;
@@ -61,10 +61,11 @@
         .camera-image {
             width: 100%;
             height: 200px;
-            object-fit: cover;
+            object-fit: contain;  /* Changed from 'cover' to 'contain' to show full image */
             border-radius: 10px;
             border: 2px solid rgba(255, 255, 255, 0.2);
             transition: opacity 0.3s ease;
+            background: #000;  /* Black background for letterboxing */
         }
         
         .camera-image.loading {
@@ -157,7 +158,7 @@
 </head>
 <body>
     <div class="container">
-        <h1 id="page-title">🔭 Observatory Cameras</h1>
+        <h1 id="page-title">Mothra Webcams</h1>
         
         <div id="content">
             <div class="loading-message">Loading cameras...</div>
@@ -198,12 +199,11 @@
                 return `🏠 Building ${building} Room`;
             }
             if (filename.startsWith('b') && filename.includes('m')) {
-                const matches = filename.match(/b(\d+)m(\d)(\d)/);
+                const matches = filename.match(/b(\d+)m(\d+)/);
                 if (matches) {
                     const building = matches[1];
-                    const row = matches[2];
-                    const col = matches[3];
-                    return `🔭 B${building} Mount R${row}C${col}`;
+                    const mount = matches[2];
+                    return `🔭 B${building}M${mount}`;
                 }
             }
             return filename.charAt(0).toUpperCase() + filename.slice(1);
