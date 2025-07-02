@@ -43,7 +43,7 @@
             border-radius: 15px;
             padding: 20px;
             margin: 20px auto;
-            max-width: 600px;
+            max-width: 700px;
             backdrop-filter: blur(10px);
         }
         
@@ -74,6 +74,44 @@
             animation: pulse 2s infinite;
         }
         
+        .status-indicator.offline {
+            background: #ff4444;
+            animation: none;
+        }
+        
+        .status-description {
+            font-size: 0.9em;
+            color: #aaa;
+            margin: 10px 0;
+            line-height: 1.4;
+        }
+        
+        .technical-info {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 15px;
+            margin-top: 15px;
+            text-align: left;
+        }
+        
+        .tech-item {
+            background: rgba(255, 255, 255, 0.05);
+            padding: 10px;
+            border-radius: 8px;
+            border-left: 3px solid #7dd3fc;
+        }
+        
+        .tech-label {
+            font-size: 0.8em;
+            color: #999;
+            margin-bottom: 2px;
+        }
+        
+        .tech-value {
+            font-size: 0.9em;
+            font-weight: 500;
+        }
+        
         @keyframes pulse {
             0% { opacity: 1; }
             50% { opacity: 0.5; }
@@ -82,7 +120,7 @@
         
         .refresh-info {
             margin-top: 20px;
-            font-size: 0.9em;
+            font-size: 0.8em;
             color: #888;
         }
         
@@ -101,8 +139,29 @@
         
         <div class="camera-info">
             <div class="camera-status">
-                <span class="status-indicator"></span>
-                <span>Online</span>
+                <span class="status-indicator" id="status-indicator"></span>
+                <span id="status-text">Loading...</span>
+            </div>
+            
+            <div class="status-description" id="status-description">Checking status...</div>
+            
+            <div class="technical-info" id="technical-info" style="display: none;">
+                <div class="tech-item">
+                    <div class="tech-label">Exposure Time</div>
+                    <div class="tech-value" id="exposure-time">-</div>
+                </div>
+                <div class="tech-item">
+                    <div class="tech-label">Gain</div>
+                    <div class="tech-value" id="gain-value">-</div>
+                </div>
+                <div class="tech-item">
+                    <div class="tech-label">Update Interval</div>
+                    <div class="tech-value" id="update-interval">-</div>
+                </div>
+                <div class="tech-item">
+                    <div class="tech-label">Mode</div>
+                    <div class="tech-value" id="camera-mode">-</div>
+                </div>
             </div>
         </div>
         
@@ -116,17 +175,63 @@
     </div>
 
     <script>
+        async function updateStatus() {
+            try {
+                const response = await fetch(`img/b14m11_status.json?t=${Date.now()}`);
+                const status = await response.json();
+                
+                const indicator = document.getElementById('status-indicator');
+                const statusText = document.getElementById('status-text');
+                const statusDescription = document.getElementById('status-description');
+                const technicalInfo = document.getElementById('technical-info');
+                
+                if (status.status === 'online') {
+                    indicator.className = 'status-indicator';
+                    statusText.textContent = 'Online';
+                    statusDescription.innerHTML = `${status.description}<br><strong>Last update:</strong> ${status.last_update_friendly}`;
+                    
+                    // Show technical information
+                    technicalInfo.style.display = 'grid';
+                    document.getElementById('exposure-time').textContent = status.exposure_time || '-';
+                    document.getElementById('gain-value').textContent = status.gain || '-';
+                    document.getElementById('update-interval').textContent = status.next_update_interval || '-';
+                    document.getElementById('camera-mode').textContent = status.mode || '-';
+                    
+                } else {
+                    indicator.className = 'status-indicator offline';
+                    statusText.textContent = 'Offline';
+                    statusDescription.textContent = status.description || 'Camera offline';
+                    technicalInfo.style.display = 'none';
+                }
+                
+            } catch (error) {
+                console.log('Status fetch failed:', error);
+                const indicator = document.getElementById('status-indicator');
+                const statusText = document.getElementById('status-text');
+                const statusDescription = document.getElementById('status-description');
+                const technicalInfo = document.getElementById('technical-info');
+                
+                indicator.className = 'status-indicator offline';
+                statusText.textContent = 'Offline';
+                statusDescription.textContent = 'Status information unavailable';
+                technicalInfo.style.display = 'none';
+            }
+        }
+        
         function refreshImage() {
             const img = document.getElementById('main-image');
             const timestamp = Date.now();
             const src = img.src.split('?')[0];
             img.src = `${src}?t=${timestamp}`;
             
+            // Update status when refreshing image
+            updateStatus();
+            
             document.getElementById('last-update').textContent = 
-                `Last updated: ${new Date().toLocaleTimeString()}`;
+                `Page refreshed: ${new Date().toLocaleTimeString()}`;
         }
         
-        // Initial update
+        // Initial load
         refreshImage();
         
         // Auto-refresh every 60 seconds

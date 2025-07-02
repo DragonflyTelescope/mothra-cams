@@ -1,4 +1,5 @@
 import datetime
+import json
 import os
 import time
 
@@ -277,6 +278,8 @@ class ObservatoryCamera:
             main_filename = os.path.join(self.output_dir, f"{self.camera_name}.png")
             img.save(main_filename)
 
+            self.save_status_info(settings)
+
             # Save timestamped archive for timelapse (only during night)
             if settings["save_timelapse"]:
                 timestamp = self.dt_manager.get_current_time()
@@ -302,6 +305,54 @@ class ObservatoryCamera:
             import traceback
 
             traceback.print_exc()
+
+    def save_status_info(self, settings):
+        """Save status information to a JSON file for the website"""
+        try:
+            current_time = self.dt_manager.get_current_time()
+
+            # Create status description based on mode
+            if settings["mode"] == "day_closed":
+                description = (
+                    "Observatory closed during daytime. Images update every hour."
+                )
+            elif settings["mode"] == "day_open":
+                description = "Daytime observing. Images update every hour."
+            elif settings["mode"] in [
+                "evening_bright_twilight",
+                "morning_bright_twilight",
+            ]:
+                description = "Twilight period. Images update every 2 minutes."
+            elif settings["mode"] in ["evening_dark_twilight", "morning_dark_twilight"]:
+                description = "Deep twilight. Images update every 90 seconds."
+            elif settings["mode"] == "dark":
+                description = "Dark sky observing. Images update every 55 seconds."
+            else:
+                description = f"Observatory operating in {settings['mode']} mode."
+
+            status_data = {
+                "camera_name": self.camera_name,
+                "last_update": current_time.isoformat(),
+                "last_update_friendly": current_time.strftime("%Y-%m-%d %H:%M:%S %Z"),
+                "mode": settings["mode"],
+                "description": description,
+                "exposure_time": str(settings["exposure"]),
+                "gain": settings["gain"],
+                "next_update_interval": str(settings["interval"]),
+                "status": "online",
+            }
+
+            # Save to JSON file
+            status_file = os.path.join(
+                self.output_dir, f"{self.camera_name}_status.json"
+            )
+            with open(status_file, "w") as f:
+                json.dump(status_data, f, indent=2)
+
+            print(f"Updated status file: {status_file}")
+
+        except Exception as e:
+            print(f"Error saving status: {e}")
 
     def _format_exposure_for_display(self, exposure):
         """Format exposure time for human-readable display"""
