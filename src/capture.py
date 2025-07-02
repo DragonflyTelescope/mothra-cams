@@ -216,17 +216,62 @@ class ObservatoryCamera:
     def save_image(self, image_data, settings):
         """Save image data as PNG"""
         try:
-            # Normalize image
-            if image_data.dtype != np.uint8:
-                normalized = (
-                    (image_data - image_data.min())
-                    / (image_data.max() - image_data.min())
-                    * 255
-                ).astype(np.uint8)
-            else:
-                normalized = image_data
+            # Handle different data types from camera
+            if isinstance(image_data, bytearray):
+                # Convert bytearray to numpy array
+                image_array = np.frombuffer(image_data, dtype=np.uint8)
+                # For ASI178MM, need to reshape based on camera resolution
+                # Check camera info for dimensions
+                camera_info = self.camera.get_camera_property()
+                height = camera_info["MaxHeight"]
+                width = camera_info["MaxWidth"]
 
-            img = Image.fromarray(normalized, mode="L")
+                # Check if we need to account for binning or ROI
+                try:
+                    current_roi = self.camera.get_roi()
+                    if current_roi:
+                        width, height = (
+                            current_roi[2],
+                            current_roi[3],
+                        )  # width, height from ROI
+                except:
+                    pass  # Use max dimensions if can't get ROI
+
+                print(f"Reshaping {len(image_array)} bytes to {width}x{height}")
+
+                # Try to reshape - may need adjustment based on actual image size
+                try:
+                    normalized = image_array.reshape((height, width))
+                except ValueError as e:
+                    print(f"Reshape failed: {e}")
+                    # Calculate actual dimensions from data size
+                    total_pixels = len(image_array)
+                    # Assume square-ish aspect ratio if reshape fails
+                    estimated_width = int(np.sqrt(total_pixels))
+                    estimated_height = total_pixels // estimated_width
+                    print(
+                        f"Trying estimated dimensions: {estimated_width}x{estimated_height}"
+                    )
+                    normalized = image_array.reshape(
+                        (estimated_height, estimated_width)
+                    )
+
+            elif isinstance(image_data, np.ndarray):
+                # Already a numpy array
+                if image_data.dtype != np.uint8:
+                    normalized = (
+                        (image_data - image_data.min())
+                        / (image_data.max() - image_data.min())
+                        * 255
+                    ).astype(np.uint8)
+                else:
+                    normalized = image_data
+            else:
+                print(f"Unexpected data type: {type(image_data)}")
+                return
+
+            # Create PIL image
+            img = Image.fromarray(normalized, mode="L")  # Grayscale
 
             # Always save/overwrite the main image for the website
             main_filename = os.path.join(self.output_dir, f"{self.camera_name}.png")
@@ -254,6 +299,9 @@ class ObservatoryCamera:
 
         except Exception as e:
             print(f"Error saving image: {e}")
+            import traceback
+
+            traceback.print_exc()
 
     def _format_exposure_for_display(self, exposure):
         """Format exposure time for human-readable display"""
