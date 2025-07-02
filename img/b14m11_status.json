@@ -1,0 +1,11 @@
+{
+  "camera_name": "b14m11",
+  "last_update": "2025-07-02T13:19:59.289146-04:00",
+  "last_update_friendly": "2025-07-02 13:19:59 -04",
+  "mode": "day_open",
+  "description": "Daytime observing. Images update every hour.",
+  "exposure_time": "658.0 us",
+  "gain": 255,
+  "next_update_interval": "1.0 h",
+  "status": "online"
+}

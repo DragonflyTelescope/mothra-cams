@@ -84,6 +84,19 @@
             animation: pulse 2s infinite;
         }
         
+        .status-indicator.offline {
+            background: #ff4444;
+            animation: none;
+        }
+        
+        .status-description {
+            text-align: center;
+            margin-top: 10px;
+            font-size: 0.8em;
+            color: #aaa;
+            line-height: 1.4;
+        }
+        
         @keyframes pulse {
             0% { opacity: 1; }
             50% { opacity: 0.5; }
@@ -108,9 +121,10 @@
                 <div class="camera-title">🔭 B14M11</div>
                 <img class="camera-image" src="img/b14m11.png" alt="B14M11 Camera">
                 <div class="camera-status">
-                    <span class="status-indicator"></span>
-                    <span>Online</span>
+                    <span class="status-indicator" id="status-indicator"></span>
+                    <span id="status-text">Loading...</span>
                 </div>
+                <div class="status-description" id="status-description">Checking status...</div>
             </a>
         </div>
         
@@ -118,7 +132,37 @@
     </div>
 
     <script>
-        // Simple auto-refresh of images
+        async function updateStatus() {
+            try {
+                const response = await fetch(`img/b14m11_status.json?t=${Date.now()}`);
+                const status = await response.json();
+                
+                const indicator = document.getElementById('status-indicator');
+                const statusText = document.getElementById('status-text');
+                const statusDescription = document.getElementById('status-description');
+                
+                if (status.status === 'online') {
+                    indicator.className = 'status-indicator';
+                    statusText.textContent = 'Online';
+                    statusDescription.innerHTML = `${status.description}<br>Last update: ${status.last_update_friendly}`;
+                } else {
+                    indicator.className = 'status-indicator offline';
+                    statusText.textContent = 'Offline';
+                    statusDescription.textContent = status.description || 'Camera offline';
+                }
+                
+            } catch (error) {
+                console.log('Status fetch failed:', error);
+                const indicator = document.getElementById('status-indicator');
+                const statusText = document.getElementById('status-text');
+                const statusDescription = document.getElementById('status-description');
+                
+                indicator.className = 'status-indicator offline';
+                statusText.textContent = 'Offline';
+                statusDescription.textContent = 'Status information unavailable';
+            }
+        }
+        
         function refreshImages() {
             const images = document.querySelectorAll('.camera-image');
             const timestamp = Date.now();
@@ -128,11 +172,14 @@
                 img.src = `${src}?t=${timestamp}`;
             });
             
+            // Update status when refreshing images
+            updateStatus();
+            
             document.getElementById('last-update').textContent = 
-                `Last updated: ${new Date().toLocaleTimeString()}`;
+                `Page refreshed: ${new Date().toLocaleTimeString()}`;
         }
         
-        // Initial update
+        // Initial load
         refreshImages();
         
         // Auto-refresh every 60 seconds
