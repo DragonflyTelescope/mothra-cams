@@ -347,9 +347,7 @@ class ObservatoryCamera:
                 Bucket=self.s3_bucket,
                 Key=dest_key,
                 MetadataDirective="REPLACE",
-                ACL="public-read",
                 ContentType=content_type,
-                CacheControl="max-age=60",  # 1 minute cache for latest
             )
             print(f"Copied to latest: {dest_key}")
 
