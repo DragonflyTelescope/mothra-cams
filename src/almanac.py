@@ -147,6 +147,32 @@ class Almanac:
         else:
             self.moonset = None
 
+    def is_moon_up(self, datetime_arg=None):
+        """
+        Check if the moon is currently above the horizon.
+
+        Args:
+            datetime_arg: Time to check (None for current time)
+
+        Returns:
+            bool: True if moon is above horizon
+        """
+        # Create fresh observer with the appropriate time
+        fresh_site, calculation_time = self._create_fresh_observer(datetime_arg)
+
+        # Compute the Moon's position
+        moon = ephem.Moon()
+        moon.compute(fresh_site)
+
+        # Moon is "up" if altitude is positive
+        moon_altitude = np.rad2deg(moon.alt)
+        return moon_altitude > 0
+
+    @property
+    def moon_is_up(self):
+        """Convenience property to check if moon is currently up"""
+        return self.is_moon_up()
+
     @property
     def current_time(self):
         return self.dt_manager.get_current_time()

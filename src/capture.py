@@ -178,12 +178,20 @@ class ObservatoryCamera:
             }
 
         else:
-            return {
-                "exposure": 10 * u.second,
-                "gain": 420,
-                "interval": 55 * u.second,
-                "mode": "dark",
-            }
+            if self.almanac.moon_is_up:
+                return {
+                    "exposure": 5 * u.second,
+                    "gain": 400,
+                    "interval": 55 * u.second,
+                    "mode": "dark",
+                }
+            else:
+                return {
+                    "exposure": 10 * u.second,
+                    "gain": 420,
+                    "interval": 55 * u.second,
+                    "mode": "dark",
+                }
 
     def capture_image(self, exposure, gain):
         """Capture a single image with specified settings"""
