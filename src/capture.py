@@ -347,7 +347,8 @@ class ObservatoryCamera:
 
     def run_continuous(self):
         """Main capture loop"""
-        last_cleanup = datetime.datetime.min
+        # Fix: Use timezone-aware datetime instead of datetime.min
+        last_cleanup = self.dt_manager.get_current_time() - datetime.timedelta(days=1)
 
         try:
             while True:

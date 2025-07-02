@@ -1,39 +1,10 @@
 import datetime
-import subprocess as sp
 from datetime import timedelta
 
 import astropy.units as u
 import ephem
 import numpy as np
 import pytz
-from astropy.coordinates import EarthLocation
-
-
-# from .site import get_nms_sitelocation
-def get_nms_sitelocation():
-    info = {
-        "elevation": 2225.04,
-        "latitude": 32.902040,
-        "longitude": -105.530640,
-        "timezone": "America/Denver",
-    }
-    return EarthLocation(
-        lat=info["latitude"] * u.deg,
-        lon=info["longitude"] * u.deg,
-        height=info["elevation"] * u.m,
-    )
-
-
-def get_nms_temperature():
-    r = sp.run(
-        "curl -s https://nmskies.com/weather1.txt", shell=True, capture_output=True
-    )
-    use_str = r.stdout.decode("utf-8")
-    words = use_str.split(",")
-    temperature = words[0]
-    if len(temperature) == 0:
-        return None
-    return int(temperature)
 
 
 def barometric_pressure(h: u.Quantity):
@@ -52,10 +23,10 @@ class Almanac:
         self.dt_manager = dt_manager
         self.site = ephem.Observer()
         self.site.lat, self.site.lon = (
-            "32.902040",
-            "-105.530640",
-        )  # Adjust to your observatory coordinates
-        self.site.elevation = 2225.04
+            "-30.471153",  # Your observatory latitude
+            "-70.765382",  # Your observatory longitude
+        )
+        self.site.elevation = 1540
         self.site.pressure = 0
         self.site.horizon = "-0:34"
 
