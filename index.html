@@ -134,7 +134,7 @@
     <script>
         async function updateStatus() {
             try {
-                const response = await fetch(`img/b14m11_status.json?t=${Date.now()}`);
+                const response = await fetch(`https://d3j53g43boxwvi.cloudfront.net/b14m11/b14m11_status.json?t=${Date.now()}`);
                 const status = await response.json();
                 
                 const indicator = document.getElementById('status-indicator');

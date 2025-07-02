@@ -168,7 +168,7 @@
         <img class="camera-image" src="https://d3j53g43boxwvi.cloudfront.net/b14m11/latest.webp" alt="B14M11 Camera">
         
         <div class="refresh-info">
-            Auto-refreshing every 60 seconds • GitHub Pages deployment may take 1-5 minutes
+            Auto-refreshing every 60 seconds
         </div>
         
         <div class="last-update" id="last-update"></div>
@@ -177,7 +177,7 @@
     <script>
         async function updateStatus() {
             try {
-                const response = await fetch(`img/b14m11_status.json?t=${Date.now()}`);
+                const response = await fetch(`https://d3j53g43boxwvi.cloudfront.net/b14m11/b14m11_status.json?t=${Date.now()}`);
                 const status = await response.json();
                 
                 const indicator = document.getElementById('status-indicator');
