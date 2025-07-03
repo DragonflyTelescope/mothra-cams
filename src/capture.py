@@ -50,33 +50,54 @@ class ObservatoryCamera:
         print(f"Using camera: {self.camera_info['Name']}")
         self.print_schedule()
 
-    def update_almanac(self):
-        """Update almanac if date has changed"""
+    def get_observing_date(self):
+        """Get the observing date (accounts for nights crossing midnight)"""
         current_time = self.dt_manager.get_current_time()
-        today_str = current_time.strftime("%Y-%m-%d")
 
-        if self.current_date != today_str:
-            self.current_date = today_str
-            self.almanac = Almanac(self.dt_manager, today_str)
-            print(f"\n=== Updated almanac for {today_str} ===")
+        # If it's before noon, we're still in the previous night's observing session
+        if current_time.hour < 12:
+            observing_date = (current_time - datetime.timedelta(days=1)).strftime(
+                "%Y-%m-%d"
+            )
+        else:
+            observing_date = current_time.strftime("%Y-%m-%d")
+
+        return observing_date
+
+    def update_almanac(self):
+        """Update almanac if observing date has changed"""
+        current_time = self.dt_manager.get_current_time()
+        observing_date = self.get_observing_date()  # Use observing date instead
+
+        print(f"Current time: {current_time}")
+        print(f"Observing date: {observing_date}")
+        print(f"Stored date: {self.current_date}")
+
+        if self.current_date != observing_date:
+            print(
+                f"Observing date changed from {self.current_date} to {observing_date}"
+            )
+            self.current_date = observing_date
+            self.almanac = Almanac(self.dt_manager, observing_date)
+            print(f"\n=== Updated almanac for observing night {observing_date} ===")
             self.print_schedule()
 
-    def print_schedule(self):
-        """Print today's astronomical schedule"""
-        print(f"Sunset: {self.almanac.sunset.strftime('%H:%M')}")
-        print(
-            f"12° twilight: {self.almanac.twilight_12_deg['evening'].strftime('%H:%M')}"
-        )
-        print(
-            f"18° twilight: {self.almanac.twilight_18_deg['evening'].strftime('%H:%M')}"
-        )
-        print(
-            f"18° morning twilight: {self.almanac.twilight_18_deg['morning'].strftime('%H:%M')}"
-        )
-        print(
-            f"12° morning twilight: {self.almanac.twilight_12_deg['morning'].strftime('%H:%M')}"
-        )
-        print(f"Sunrise: {self.almanac.sunrise.strftime('%H:%M')}")
+        def print_schedule(self):
+            """Print today's astronomical schedule"""
+            print(f"Sunset: {self.almanac.sunset.strftime('%H:%M')}")
+            print(
+                f"12° twilight: {self.almanac.twilight_12_deg['evening'].strftime('%H:%M')}"
+            )
+            print(
+                f"18° twilight: {self.almanac.twilight_18_deg['evening'].strftime('%H:%M')}"
+            )
+            print(
+                f"18° morning twilight: {self.almanac.twilight_18_deg['morning'].strftime('%H:%M')}"
+            )
+            print(
+                f"12° morning twilight: {self.almanac.twilight_12_deg['morning'].strftime('%H:%M')}"
+            )
+            print(f"Sunrise: {self.almanac.sunrise.strftime('%H:%M')}")
 
     def get_camera_settings(self):
         """Determine camera settings based on current time"""
