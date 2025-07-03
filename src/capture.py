@@ -81,13 +81,8 @@ class ObservatoryCamera:
     def get_camera_settings(self):
         """Determine camera settings based on current time"""
         current_time = self.dt_manager.get_current_time()
-        dt_12deg = (
-            self.almanac.twilight_12_deg["evening"] - current_time
-        ).total_seconds() / 60
-        dt_18deg = (
-            self.almanac.twilight_18_deg["evening"] - current_time
-        ).total_seconds() / 60
-        # Handle morning twilight back to day
+
+        # Morning logic
         if current_time > self.almanac.sunrise:
             return {
                 "exposure": 658 * u.microsecond,
@@ -112,6 +107,7 @@ class ObservatoryCamera:
                 "mode": "morning_dark_twilight",
             }
 
+        # Day logic
         elif current_time < self.almanac.sunset:
             return {
                 "exposure": 658 * u.microsecond,
@@ -120,70 +116,68 @@ class ObservatoryCamera:
                 "mode": "day_open",
             }
 
-        elif (
-            self.almanac.twilight_12_deg["evening"] - current_time
-        ).total_seconds() / 60 > 30:
-            return {
-                "exposure": 0.05 * u.second,
-                "gain": 70,
-                "interval": 2 * u.minute,
-                "mode": "evening_bright_twilight",
-            }
-        elif (
-            self.almanac.twilight_12_deg["evening"] - current_time
-        ).total_seconds() / 60 > 20:
-            return {
-                "exposure": 0.4 * u.second,
-                "gain": 100,
-                "interval": 2 * u.minute,
-                "mode": "evening_bright_twilight",
-            }
-        elif (
-            self.almanac.twilight_12_deg["evening"] - current_time
-        ).total_seconds() / 60 > 10:
-            return {
-                "exposure": 1 * u.second,
-                "gain": 200,
-                "interval": 2 * u.minute,
-                "mode": "evening_bright_twilight",
-            }
-        elif dt_12deg < 10 and dt_12deg > 0:
-            return {
-                "exposure": 2 * u.second,
-                "gain": 300,
-                "interval": 2 * u.minute,
-                "mode": "evening_dark_twilight",
-            }
-        elif dt_12deg < 10 and dt_12deg > 0:
-            return {
-                "exposure": 2 * u.second,
-                "gain": 300,
-                "interval": 2 * u.minute,
-                "mode": "evening_dark_twilight",
-            }
-        elif dt_18deg > 20:
-            return {
-                "exposure": 5 * u.second,
-                "gain": 300,
-                "interval": 2 * u.minute,
-                "mode": "evening_dark_twilight",
-            }
-
+        # Evening twilight logic (sunset to 18° evening twilight)
         elif current_time < self.almanac.twilight_18_deg["evening"]:
-            return {
-                "exposure": 10 * u.second,
-                "gain": 340,
-                "interval": 90 * u.second,
-                "mode": "evening_dark_twilight",
-            }
+            dt_12deg = (
+                self.almanac.twilight_12_deg["evening"] - current_time
+            ).total_seconds() / 60
 
+            if dt_12deg > 30:
+                return {
+                    "exposure": 0.05 * u.second,
+                    "gain": 70,
+                    "interval": 2 * u.minute,
+                    "mode": "evening_bright_twilight",
+                }
+            elif dt_12deg > 20:
+                return {
+                    "exposure": 0.4 * u.second,
+                    "gain": 100,
+                    "interval": 2 * u.minute,
+                    "mode": "evening_bright_twilight",
+                }
+            elif dt_12deg > 10:
+                return {
+                    "exposure": 1 * u.second,
+                    "gain": 200,
+                    "interval": 2 * u.minute,
+                    "mode": "evening_bright_twilight",
+                }
+            elif dt_12deg > 0:  # Within 10 minutes of 12° twilight
+                return {
+                    "exposure": 2 * u.second,
+                    "gain": 300,
+                    "interval": 2 * u.minute,
+                    "mode": "evening_dark_twilight",
+                }
+            else:  # Past 12° twilight, approaching 18°
+                dt_18deg = (
+                    self.almanac.twilight_18_deg["evening"] - current_time
+                ).total_seconds() / 60
+                if dt_18deg > 20:
+                    return {
+                        "exposure": 5 * u.second,
+                        "gain": 300,
+                        "interval": 2 * u.minute,
+                        "mode": "evening_dark_twilight",
+                    }
+                else:
+                    return {
+                        "exposure": 10 * u.second,
+                        "gain": 340,
+                        "interval": 90 * u.second,
+                        "mode": "evening_dark_twilight",
+                    }
+
+        # DARK TIME: After 18° evening twilight and before 18° morning twilight
+        # This includes midnight!
         else:
-            if self.almanac.moon_is_up:
+            if hasattr(self.almanac, "moon_is_up") and self.almanac.moon_is_up:
                 return {
                     "exposure": 5 * u.second,
                     "gain": 400,
                     "interval": 55 * u.second,
-                    "mode": "dark",
+                    "mode": "dark_moonlit",
                 }
             else:
                 return {
