@@ -145,8 +145,8 @@ class ObservatoryCamera:
 
             if dt_12deg > 30:
                 return {
-                    "exposure": 0.05 * u.second,
-                    "gain": 70,
+                    "exposure": 0.001 * u.second,
+                    "gain": 50,
                     "interval": 2 * u.minute,
                     "mode": "evening_bright_twilight",
                 }
