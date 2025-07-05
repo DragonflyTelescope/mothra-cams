@@ -103,7 +103,7 @@ class ObservatoryCamera:
         """Determine camera settings based on current time"""
         current_time = self.dt_manager.get_current_time()
 
-        # Morning logic
+        # Morning logic (reverse of evening)
         if current_time > self.almanac.sunrise:
             return {
                 "exposure": 658 * u.microsecond,
@@ -113,17 +113,43 @@ class ObservatoryCamera:
             }
 
         elif current_time > self.almanac.twilight_12_deg["morning"]:
+            # Linear interpolation from 12° to sunrise
+            progress = self._get_progress_between_times(
+                self.almanac.twilight_12_deg["morning"],
+                self.almanac.sunrise,
+                current_time,
+            )
+            exposure, gain = self._interpolate_settings(
+                start_exp=2.0,
+                end_exp=0.000658,  # 2s to 658µs
+                start_gain=300,
+                end_gain=255,
+                progress=progress,
+            )
             return {
-                "exposure": 1 * u.second,
-                "gain": 100,
+                "exposure": exposure * u.second,
+                "gain": int(gain),
                 "interval": 2 * u.minute,
                 "mode": "morning_bright_twilight",
             }
 
         elif current_time > self.almanac.twilight_18_deg["morning"]:
+            # Linear interpolation from 18° to 12° morning
+            progress = self._get_progress_between_times(
+                self.almanac.twilight_18_deg["morning"],
+                self.almanac.twilight_12_deg["morning"],
+                current_time,
+            )
+            exposure, gain = self._interpolate_settings(
+                start_exp=10.0,
+                end_exp=2.0,  # 10s to 2s
+                start_gain=420,
+                end_gain=300,
+                progress=progress,
+            )
             return {
-                "exposure": 5 * u.second,
-                "gain": 250,
+                "exposure": exposure * u.second,
+                "gain": int(gain),
                 "interval": 90 * u.second,
                 "mode": "morning_dark_twilight",
             }
@@ -137,61 +163,49 @@ class ObservatoryCamera:
                 "mode": "day_open",
             }
 
-        # Evening twilight logic (sunset to 18° evening twilight)
+        # Evening twilight: sunset to 12° (linear interpolation)
+        elif current_time < self.almanac.twilight_12_deg["evening"]:
+            progress = self._get_progress_between_times(
+                self.almanac.sunset,
+                self.almanac.twilight_12_deg["evening"],
+                current_time,
+            )
+            exposure, gain = self._interpolate_settings(
+                start_exp=0.000658,
+                end_exp=2.0,  # 658µs to 2s
+                start_gain=255,
+                end_gain=300,
+                progress=progress,
+            )
+            return {
+                "exposure": exposure * u.second,
+                "gain": int(gain),
+                "interval": 2 * u.minute,
+                "mode": "evening_bright_twilight",
+            }
+
+        # Evening twilight: 12° to 18° (linear interpolation)
         elif current_time < self.almanac.twilight_18_deg["evening"]:
-            dt_12deg = (
-                self.almanac.twilight_12_deg["evening"] - current_time
-            ).total_seconds() / 60
+            progress = self._get_progress_between_times(
+                self.almanac.twilight_12_deg["evening"],
+                self.almanac.twilight_18_deg["evening"],
+                current_time,
+            )
+            exposure, gain = self._interpolate_settings(
+                start_exp=2.0,
+                end_exp=10.0,  # 2s to 10s
+                start_gain=300,
+                end_gain=420,
+                progress=progress,
+            )
+            return {
+                "exposure": exposure * u.second,
+                "gain": int(gain),
+                "interval": 90 * u.second,
+                "mode": "evening_dark_twilight",
+            }
 
-            if dt_12deg > 30:
-                return {
-                    "exposure": 0.001 * u.second,
-                    "gain": 50,
-                    "interval": 2 * u.minute,
-                    "mode": "evening_bright_twilight",
-                }
-            elif dt_12deg > 20:
-                return {
-                    "exposure": 0.4 * u.second,
-                    "gain": 100,
-                    "interval": 2 * u.minute,
-                    "mode": "evening_bright_twilight",
-                }
-            elif dt_12deg > 10:
-                return {
-                    "exposure": 1 * u.second,
-                    "gain": 200,
-                    "interval": 2 * u.minute,
-                    "mode": "evening_bright_twilight",
-                }
-            elif dt_12deg > 0:  # Within 10 minutes of 12° twilight
-                return {
-                    "exposure": 2 * u.second,
-                    "gain": 300,
-                    "interval": 2 * u.minute,
-                    "mode": "evening_dark_twilight",
-                }
-            else:  # Past 12° twilight, approaching 18°
-                dt_18deg = (
-                    self.almanac.twilight_18_deg["evening"] - current_time
-                ).total_seconds() / 60
-                if dt_18deg > 20:
-                    return {
-                        "exposure": 5 * u.second,
-                        "gain": 300,
-                        "interval": 2 * u.minute,
-                        "mode": "evening_dark_twilight",
-                    }
-                else:
-                    return {
-                        "exposure": 10 * u.second,
-                        "gain": 340,
-                        "interval": 90 * u.second,
-                        "mode": "evening_dark_twilight",
-                    }
-
-        # DARK TIME: After 18° evening twilight and before 18° morning twilight
-        # This includes midnight!
+        # DARK TIME: Simple moon up/down logic
         else:
             if hasattr(self.almanac, "moon_is_up") and self.almanac.moon_is_up:
                 return {
@@ -207,6 +221,27 @@ class ObservatoryCamera:
                     "interval": 55 * u.second,
                     "mode": "dark",
                 }
+
+    def _get_progress_between_times(self, start_time, end_time, current_time):
+        """Calculate progress (0.0 to 1.0) between two times"""
+        total_duration = (end_time - start_time).total_seconds()
+        elapsed = (current_time - start_time).total_seconds()
+        progress = max(0.0, min(1.0, elapsed / total_duration))
+        return progress
+
+    def _interpolate_settings(self, start_exp, end_exp, start_gain, end_gain, progress):
+        """Linear interpolation between camera settings"""
+        # Exponential interpolation for exposure (feels more natural)
+        import math
+
+        log_start = math.log(start_exp)
+        log_end = math.log(end_exp)
+        exposure = math.exp(log_start + progress * (log_end - log_start))
+
+        # Linear interpolation for gain
+        gain = start_gain + progress * (end_gain - start_gain)
+
+        return exposure, gain
 
     def capture_image(self, exposure, gain):
         """Capture a single image with specified settings"""
@@ -514,34 +549,80 @@ class ObservatoryCamera:
             print(f"Error during S3 cleanup: {e}")
 
     def run_continuous(self):
-        """Main capture loop"""
+        """Main capture loop with responsive time checking"""
         last_cleanup = self.dt_manager.get_current_time() - datetime.timedelta(days=1)
+        last_capture_time = None
 
         try:
             while True:
                 self.update_almanac()
 
                 current_time = self.dt_manager.get_current_time()
+
+                # Daily cleanup
                 if (current_time - last_cleanup).days >= 1:
                     self.cleanup_old_files()
                     last_cleanup = current_time
 
+                # Get current settings
                 settings = self.get_camera_settings()
 
-                print(
-                    f"\n{current_time.strftime('%Y-%m-%d %H:%M:%S')} - Mode: {settings['mode']}"
-                )
+                # Determine if we should capture now
+                should_capture = False
 
-                image_data = self.capture_image(settings["exposure"], settings["gain"])
-
-                if image_data is not None:
-                    self.save_image_to_s3(image_data, settings)
+                if last_capture_time is None:
+                    # First capture
+                    should_capture = True
+                    reason = "Initial capture"
                 else:
-                    print("Failed to capture image")
+                    # Check if enough time has passed since last capture
+                    time_since_capture = (
+                        current_time - last_capture_time
+                    ).total_seconds()
+                    required_interval = settings["interval"].to(u.second).value
 
-                interval_seconds = settings["interval"].to(u.second).value
-                print(f"Waiting {settings['interval']} until next capture...")
-                time.sleep(interval_seconds)
+                    if time_since_capture >= required_interval:
+                        should_capture = True
+                        reason = f"Interval reached ({time_since_capture:.0f}s >= {required_interval}s)"
+                    else:
+                        # Check if we've switched to a different mode (which might need different cadence)
+                        previous_settings = getattr(self, "_last_settings", None)
+                        if (
+                            previous_settings
+                            and previous_settings["mode"] != settings["mode"]
+                        ):
+                            should_capture = True
+                            reason = f"Mode changed: {previous_settings['mode']} → {settings['mode']}"
+
+                if should_capture:
+                    print(
+                        f"\n{current_time.strftime('%Y-%m-%d %H:%M:%S')} - Mode: {settings['mode']}"
+                    )
+                    print(f"Capture reason: {reason}")
+
+                    image_data = self.capture_image(
+                        settings["exposure"], settings["gain"]
+                    )
+
+                    if image_data is not None:
+                        self.save_image_to_s3(image_data, settings)
+                        last_capture_time = current_time
+                        self._last_settings = settings.copy()
+                    else:
+                        print("Failed to capture image")
+                else:
+                    # Show status occasionally without spamming
+                    if int(time.time()) % 30 == 0:  # Every 30 seconds
+                        time_until_next = (
+                            settings["interval"].to(u.second).value
+                            - (current_time - last_capture_time).total_seconds()
+                        )
+                        print(
+                            f"{current_time.strftime('%H:%M:%S')} - Mode: {settings['mode']}, next capture in {time_until_next:.0f}s"
+                        )
+
+                # Always sleep for just 1 second to check again
+                time.sleep(1)
 
         except KeyboardInterrupt:
             print("\nStopping capture...")
