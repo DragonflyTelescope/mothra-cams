@@ -126,67 +126,43 @@ class ObservatoryCamera:
 
         current_time = self.dt_manager.get_current_time()
 
-        # Morning logic (reverse of evening)
-        if current_time > self.almanac.sunrise:
-            return {
-                "exposure": 658 * u.microsecond,
-                "gain": 255,
-                "interval": 1 * u.hour,
-                "mode": "day_closed",
-            }
+        # The key insight: our almanac changes at noon, but we need to know if we're in
+        # "today's daylight" or "tonight's darkness" or "tomorrow's daylight"
 
-        elif not is_enclosure_open():
-            return {
-                "exposure": 90 * u.second,
-                "gain": 420,
-                "interval": 1 * u.hour,
-                "mode": "night_closed",
-            }
+        current_hour = current_time.hour
 
-        elif current_time > self.almanac.twilight_12_deg["morning"]:
-            # Linear interpolation from 12° to sunrise
-            progress = self._get_progress_between_times(
-                self.almanac.twilight_12_deg["morning"],
-                self.almanac.sunrise,
-                current_time,
-            )
-            exposure, gain = self._interpolate_settings(
-                start_exp=2.0,
-                end_exp=0.000658,  # 2s to 658µs
-                start_gain=300,
-                end_gain=255,
-                progress=progress,
-            )
-            return {
-                "exposure": exposure * u.second,
-                "gain": int(gain),
-                "interval": 2 * u.minute,
-                "mode": "morning_bright_twilight",
-            }
+        # Case 1: Before noon - we're using yesterday's almanac, so times are for "last night"
+        # If current_time > sunrise, we're in "this morning's" daylight
+        if current_hour < 12:
+            is_daylight = current_time > self.almanac.sunrise
 
-        elif current_time > self.almanac.twilight_18_deg["morning"]:
-            # Linear interpolation from 18° to 12° morning
-            progress = self._get_progress_between_times(
-                self.almanac.twilight_18_deg["morning"],
-                self.almanac.twilight_12_deg["morning"],
-                current_time,
-            )
-            exposure, gain = self._interpolate_settings(
-                start_exp=10.0,
-                end_exp=2.0,  # 10s to 2s
-                start_gain=420,
-                end_gain=300,
-                progress=progress,
-            )
-            return {
-                "exposure": exposure * u.second,
-                "gain": int(gain),
-                "interval": 90 * u.second,
-                "mode": "morning_dark_twilight",
-            }
+        # Case 2: After noon - we're using today's almanac, so times are for "tonight"
+        # If current_time < sunset, we're still in "this afternoon's" daylight
+        else:
+            is_daylight = current_time < self.almanac.sunset
 
-        # Day logic
-        elif current_time < self.almanac.sunset:
+        # Now we have a clean is_daylight boolean that works regardless of almanac timing
+
+        # Check enclosure status first
+        if not is_enclosure_open():
+            if is_daylight:
+                return {
+                    "exposure": 658 * u.microsecond,
+                    "gain": 255,
+                    "interval": 1 * u.hour,
+                    "mode": "day_closed",
+                }
+            else:
+                return {
+                    "exposure": 90 * u.second,
+                    "gain": 420,
+                    "interval": 1 * u.hour,
+                    "mode": "night_closed",
+                }
+
+        # Enclosure is open - determine mode based on sun position
+
+        if is_daylight:
             return {
                 "exposure": 658 * u.microsecond,
                 "gain": 255,
@@ -194,64 +170,123 @@ class ObservatoryCamera:
                 "mode": "day_open",
             }
 
-        # Evening twilight: sunset to 12° (linear interpolation)
-        elif current_time < self.almanac.twilight_12_deg["evening"]:
-            progress = self._get_progress_between_times(
-                self.almanac.sunset,
-                self.almanac.twilight_12_deg["evening"],
-                current_time,
-            )
-            exposure, gain = self._interpolate_settings(
-                start_exp=0.000658,
-                end_exp=2.0,  # 658µs to 2s
-                start_gain=255,
-                end_gain=300,
-                progress=progress,
-            )
-            return {
-                "exposure": exposure * u.second,
-                "gain": int(gain),
-                "interval": 2 * u.minute,
-                "mode": "evening_bright_twilight",
-            }
+        # We're in darkness - now check twilight stages
 
-        # Evening twilight: 12° to 18° (linear interpolation)
-        elif current_time < self.almanac.twilight_18_deg["evening"]:
-            progress = self._get_progress_between_times(
-                self.almanac.twilight_12_deg["evening"],
-                self.almanac.twilight_18_deg["evening"],
-                current_time,
-            )
-            exposure, gain = self._interpolate_settings(
-                start_exp=2.0,
-                end_exp=10.0,  # 2s to 10s
-                start_gain=300,
-                end_gain=420,
-                progress=progress,
-            )
-            return {
-                "exposure": exposure * u.second,
-                "gain": int(gain),
-                "interval": 90 * u.second,
-                "mode": "evening_dark_twilight",
-            }
+        # Morning twilight stages (only apply before noon)
+        if current_hour < 12:
+            if (
+                self.almanac.twilight_18_deg["morning"]
+                < current_time
+                <= self.almanac.twilight_12_deg["morning"]
+            ):
+                progress = self._get_progress_between_times(
+                    self.almanac.twilight_18_deg["morning"],
+                    self.almanac.twilight_12_deg["morning"],
+                    current_time,
+                )
+                exposure, gain = self._interpolate_settings(
+                    start_exp=10.0,
+                    end_exp=2.0,
+                    start_gain=420,
+                    end_gain=300,
+                    progress=progress,
+                )
+                return {
+                    "exposure": exposure * u.second,
+                    "gain": int(gain),
+                    "interval": 90 * u.second,
+                    "mode": "morning_dark_twilight",
+                }
 
-        # DARK TIME: Simple moon up/down logic
+            elif (
+                self.almanac.twilight_12_deg["morning"]
+                < current_time
+                <= self.almanac.sunrise
+            ):
+                progress = self._get_progress_between_times(
+                    self.almanac.twilight_12_deg["morning"],
+                    self.almanac.sunrise,
+                    current_time,
+                )
+                exposure, gain = self._interpolate_settings(
+                    start_exp=2.0,
+                    end_exp=0.000658,
+                    start_gain=300,
+                    end_gain=255,
+                    progress=progress,
+                )
+                return {
+                    "exposure": exposure * u.second,
+                    "gain": int(gain),
+                    "interval": 2 * u.minute,
+                    "mode": "morning_bright_twilight",
+                }
+
+        # Evening twilight stages (only apply after noon)
         else:
-            if hasattr(self.almanac, "moon_is_up") and self.almanac.moon_is_up:
+            if (
+                self.almanac.sunset
+                <= current_time
+                < self.almanac.twilight_12_deg["evening"]
+            ):
+                progress = self._get_progress_between_times(
+                    self.almanac.sunset,
+                    self.almanac.twilight_12_deg["evening"],
+                    current_time,
+                )
+                exposure, gain = self._interpolate_settings(
+                    start_exp=0.000658,
+                    end_exp=2.0,
+                    start_gain=255,
+                    end_gain=300,
+                    progress=progress,
+                )
                 return {
-                    "exposure": 5 * u.second,
-                    "gain": 400,
-                    "interval": 55 * u.second,
-                    "mode": "dark_moonlit",
+                    "exposure": exposure * u.second,
+                    "gain": int(gain),
+                    "interval": 2 * u.minute,
+                    "mode": "evening_bright_twilight",
                 }
-            else:
+
+            elif (
+                self.almanac.twilight_12_deg["evening"]
+                <= current_time
+                < self.almanac.twilight_18_deg["evening"]
+            ):
+                progress = self._get_progress_between_times(
+                    self.almanac.twilight_12_deg["evening"],
+                    self.almanac.twilight_18_deg["evening"],
+                    current_time,
+                )
+                exposure, gain = self._interpolate_settings(
+                    start_exp=2.0,
+                    end_exp=10.0,
+                    start_gain=300,
+                    end_gain=420,
+                    progress=progress,
+                )
                 return {
-                    "exposure": 10 * u.second,
-                    "gain": 420,
-                    "interval": 55 * u.second,
-                    "mode": "dark",
+                    "exposure": exposure * u.second,
+                    "gain": int(gain),
+                    "interval": 90 * u.second,
+                    "mode": "evening_dark_twilight",
                 }
+
+        # Full darkness (not in any twilight period)
+        if hasattr(self.almanac, "moon_is_up") and self.almanac.moon_is_up:
+            return {
+                "exposure": 5 * u.second,
+                "gain": 400,
+                "interval": 55 * u.second,
+                "mode": "dark_moonlit",
+            }
+        else:
+            return {
+                "exposure": 10 * u.second,
+                "gain": 420,
+                "interval": 55 * u.second,
+                "mode": "dark",
+            }
 
     def _get_progress_between_times(self, start_time, end_time, current_time):
         """Calculate progress (0.0 to 1.0) between two times"""
@@ -646,7 +681,7 @@ class ObservatoryCamera:
                         print("Failed to capture image")
                 else:
                     # Show status occasionally without spamming
-                    if int(time.time()) % 30 == 0:  # Every 30 seconds
+                    if int(time.time()) % 300 == 0:  # Every 30 seconds
                         time_until_next = (
                             settings["interval"].to(u.second).value
                             - (current_time - last_capture_time).total_seconds()
