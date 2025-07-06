@@ -26,8 +26,6 @@ def is_enclosure_open():
         with open("/mnt/environment/Roof14.txt", "r") as f:
             roof_status = f.read().strip()
 
-        print(f"DEBUG: Roof status: '{roof_status}'")
-
         if roof_status == "Closed":
             return False
         else:
@@ -93,9 +91,9 @@ class ObservatoryCamera:
         current_time = self.dt_manager.get_current_time()
         observing_date = self.get_observing_date()  # Use observing date instead
 
-        print(f"Current time: {current_time}")
-        print(f"Observing date: {observing_date}")
-        print(f"Stored date: {self.current_date}")
+        # print(f"Current time: {current_time}")
+        # print(f"Observing date: {observing_date}")
+        # print(f"Stored date: {self.current_date}")
 
         if self.current_date != observing_date:
             print(
@@ -138,7 +136,6 @@ class ObservatoryCamera:
             }
 
         elif not is_enclosure_open():
-            print("Enclosure is closed.")
             return {
                 "exposure": 30 * u.second,
                 "gain": 400,
