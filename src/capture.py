@@ -670,6 +670,7 @@ def main():
         s3_bucket=os.environ.get("S3_BUCKET_NAME"),
         cleanup_days=7,
     )
+    print(f"INITIAL ROOF STATUS: {is_enclosure_open()}")
 
     obs_camera.run_continuous()
 
