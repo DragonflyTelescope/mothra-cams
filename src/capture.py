@@ -137,8 +137,8 @@ class ObservatoryCamera:
 
         elif not is_enclosure_open():
             return {
-                "exposure": 30 * u.second,
-                "gain": 400,
+                "exposure": 90 * u.second,
+                "gain": 420,
                 "interval": 1 * u.hour,
                 "mode": "night_closed",
             }
