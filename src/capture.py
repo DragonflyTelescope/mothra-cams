@@ -116,14 +116,6 @@ class ObservatoryCamera:
     def get_camera_settings(self):
         """Determine camera settings based on current time"""
         # first check if roof is open
-        if not is_enclosure_open():
-            print("Enclosure is closed.")
-            return {
-                "exposure": 30 * u.second,
-                "gain": 400,
-                "interval": 1 * u.hour,
-                "mode": "night_dome_closed",
-            }
 
         current_time = self.dt_manager.get_current_time()
 
@@ -134,6 +126,15 @@ class ObservatoryCamera:
                 "gain": 255,
                 "interval": 1 * u.hour,
                 "mode": "day_closed",
+            }
+
+        elif not is_enclosure_open():
+            print("Enclosure is closed.")
+            return {
+                "exposure": 30 * u.second,
+                "gain": 400,
+                "interval": 1 * u.hour,
+                "mode": "night_closed",
             }
 
         elif current_time > self.almanac.twilight_12_deg["morning"]:
