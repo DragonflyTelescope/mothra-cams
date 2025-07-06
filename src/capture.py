@@ -8,10 +8,13 @@ import boto3
 import numpy as np
 import zwoasi as asi
 from botocore.exceptions import NoCredentialsError
+from dotenv import load_dotenv
 from PIL import Image
 
 from almanac import Almanac
 from datetime_manager import DateTimeManager
+
+load_dotenv()
 
 # Initialize
 asi.init("/usr/local/lib/libASICamera2.so")
@@ -640,7 +643,7 @@ def main():
     obs_camera = ObservatoryCamera(
         camera_id=0,
         camera_name="b14m11",
-        s3_bucket="mothra-webcams",
+        s3_bucket=os.environ.get("S3_BUCKET_NAME"),
         cleanup_days=7,
     )
 
