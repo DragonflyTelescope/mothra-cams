@@ -1,6 +1,7 @@
 import datetime
 import json
 import os
+import subprocess as sp
 import time
 
 import astropy.units as u
@@ -18,6 +19,16 @@ load_dotenv()
 
 # Initialize
 asi.init("/usr/local/lib/libASICamera2.so")
+
+
+def is_enclosure_open():
+    r = sp.run(
+        "more /mnt/environment/Roof14.txt", shell=True, capture_output=True, text=True
+    )
+    if r.stdout == "Closed":
+        return False
+    else:
+        return True
 
 
 class ObservatoryCamera:
@@ -104,6 +115,16 @@ class ObservatoryCamera:
 
     def get_camera_settings(self):
         """Determine camera settings based on current time"""
+        # first check if roof is open
+        if not is_enclosure_open():
+            print("Enclosure is closed.")
+            return {
+                "exposure": 30 * u.second,
+                "gain": 400,
+                "interval": 1 * u.hour,
+                "mode": "night_dome_closed",
+            }
+
         current_time = self.dt_manager.get_current_time()
 
         # Morning logic (reverse of evening)
@@ -371,9 +392,12 @@ class ObservatoryCamera:
             self.upload_file_to_s3(
                 temp_webp,
                 f"{self.camera_name}/{self.camera_name}-{safe_timestamp}.webp",
+                mode=settings["mode"],
             )
             self.upload_file_to_s3(
-                temp_png, f"{self.camera_name}/{self.camera_name}-{safe_timestamp}.png"
+                temp_png,
+                f"{self.camera_name}/{self.camera_name}-{safe_timestamp}.png",
+                mode=settings["mode"],
             )
 
             # Copy to latest versions using S3
@@ -404,7 +428,7 @@ class ObservatoryCamera:
 
             traceback.print_exc()
 
-    def upload_file_to_s3(self, local_path, s3_key):
+    def upload_file_to_s3(self, local_path, s3_key, mode):
         """Upload a file to S3"""
         try:
             # Determine content type based on extension
@@ -423,9 +447,7 @@ class ObservatoryCamera:
                 local_path,
                 self.s3_bucket,
                 s3_key,
-                ExtraArgs={
-                    "ContentType": content_type,
-                },
+                ExtraArgs={"ContentType": content_type, "Tagging": f"mode={mode}"},
             )
             print(f"Uploaded: s3://{self.s3_bucket}/{s3_key}")
 
