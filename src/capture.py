@@ -22,13 +22,44 @@ asi.init("/usr/local/lib/libASICamera2.so")
 
 
 def is_enclosure_open():
-    r = sp.run(
-        "more /mnt/environment/Roof14.txt", shell=True, capture_output=True, text=True
-    )
-    if r.stdout == "Closed":
+    import datetime
+    import os
+
+    print(f"DEBUG: Called is_enclosure_open() at {datetime.datetime.now()}")
+    print(f"DEBUG: Current working directory: {os.getcwd()}")
+    print(f"DEBUG: File exists: {os.path.exists('/mnt/environment/Roof14.txt')}")
+
+    try:
+        # Check file directly first
+        with open("/mnt/environment/Roof14.txt", "r") as f:
+            direct_content = f.read()
+        print(f"DEBUG: Direct file read: {repr(direct_content)}")
+
+        # Then try subprocess
+        r = sp.run(
+            "more /mnt/environment/Roof14.txt",
+            shell=True,
+            capture_output=True,
+            text=True,
+        )
+        print(f"DEBUG: subprocess return code: {r.returncode}")
+        print(f"DEBUG: subprocess stdout: {repr(r.stdout)}")
+        print(f"DEBUG: subprocess stderr: {repr(r.stderr)}")
+
+        roof_status = r.stdout.strip()
+        print(f"DEBUG: Stripped status: '{roof_status}'")
+        print(f"DEBUG: Comparison result: {roof_status == 'Closed'}")
+
+        if roof_status == "Closed":
+            print("DEBUG: Returning False (roof closed)")
+            return False
+        else:
+            print("DEBUG: Returning True (roof open)")
+            return True
+
+    except Exception as e:
+        print(f"DEBUG: Exception occurred: {e}")
         return False
-    else:
-        return True
 
 
 class ObservatoryCamera:
