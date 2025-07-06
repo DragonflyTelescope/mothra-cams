@@ -115,9 +115,10 @@ class ObservatoryCamera:
 
     def get_camera_settings(self):
         """Determine camera settings based on current time"""
-        # first check if roof is open
 
         current_time = self.dt_manager.get_current_time()
+        print(f"Current time: {current_time}")
+        print(f"Roof Status: Open: {is_enclosure_open()}")
 
         # Morning logic (reverse of evening)
         if current_time > self.almanac.sunrise:
