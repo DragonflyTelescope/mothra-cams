@@ -1,7 +1,6 @@
 import datetime
 import json
 import os
-import subprocess as sp
 import time
 
 import astropy.units as u
@@ -22,43 +21,23 @@ asi.init("/usr/local/lib/libASICamera2.so")
 
 
 def is_enclosure_open():
-    import datetime
-    import os
-
-    print(f"DEBUG: Called is_enclosure_open() at {datetime.datetime.now()}")
-    print(f"DEBUG: Current working directory: {os.getcwd()}")
-    print(f"DEBUG: File exists: {os.path.exists('/mnt/environment/Roof14.txt')}")
-
+    """Check if enclosure is open by reading roof status file"""
     try:
-        # Check file directly first
         with open("/mnt/environment/Roof14.txt", "r") as f:
-            direct_content = f.read()
-        print(f"DEBUG: Direct file read: {repr(direct_content)}")
+            roof_status = f.read().strip()
 
-        # Then try subprocess
-        r = sp.run(
-            "more /mnt/environment/Roof14.txt",
-            shell=True,
-            capture_output=True,
-            text=True,
-        )
-        print(f"DEBUG: subprocess return code: {r.returncode}")
-        print(f"DEBUG: subprocess stdout: {repr(r.stdout)}")
-        print(f"DEBUG: subprocess stderr: {repr(r.stderr)}")
-
-        roof_status = r.stdout.strip()
-        print(f"DEBUG: Stripped status: '{roof_status}'")
-        print(f"DEBUG: Comparison result: {roof_status == 'Closed'}")
+        print(f"DEBUG: Roof status: '{roof_status}'")
 
         if roof_status == "Closed":
-            print("DEBUG: Returning False (roof closed)")
             return False
         else:
-            print("DEBUG: Returning True (roof open)")
             return True
 
+    except FileNotFoundError:
+        print("ERROR: Roof status file not found")
+        return False  # Assume closed if file missing
     except Exception as e:
-        print(f"DEBUG: Exception occurred: {e}")
+        print(f"ERROR reading roof status: {e}")
         return False
 
 
