@@ -2,13 +2,14 @@ services:
   observatory-camera:
     build: .
     container_name: observatory-camera
+    user: "1000:1000"
     volumes:
       - /home/mothra/git/mothra-cams:/repo
       - /dev/bus/usb:/dev/bus/usb
       - /mnt/environment/:/mnt/environment/
     devices:
       - /dev/bus/usb
-    privileged: true
+    #privileged: true
     env_file:
       - .env
     restart: unless-stopped
