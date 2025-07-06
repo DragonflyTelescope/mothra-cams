@@ -519,7 +519,9 @@ class ObservatoryCamera:
                 json.dump(status_data, f, indent=2)
 
             self.upload_file_to_s3(
-                temp_status, f"{self.camera_name}/{self.camera_name}_status.json"
+                temp_status,
+                f"{self.camera_name}/{self.camera_name}_status.json",
+                mode=status_data["mode"],
             )
             os.remove(temp_status)
 
