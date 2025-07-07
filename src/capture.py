@@ -291,11 +291,13 @@ class ObservatoryCamera:
             exposure_range = base_exposure - min_exposure
 
             # More aggressive scaling (2.5 or 3.0 exponent)
-            scaled_factor = moon_phase**3.0  # Try 3.0 if you want even more aggressive
-            exposure_seconds = base_exposure - (exposure_range * scaled_factor)
+            darkness_factor = (1.0 - moon_phase) ** 3
+            exposure_seconds = base_exposure - (exposure_range * darkness_factor)
 
             # Ensure we stay within bounds
-            exposure_seconds = max(min_exposure, min(base_exposure, exposure_seconds))
+            exposure_seconds = (
+                min_exposure + (base_exposure - min_exposure) * darkness_factor
+            )
 
             return {
                 "exposure": exposure_seconds * u.second,
