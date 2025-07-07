@@ -287,7 +287,7 @@ class ObservatoryCamera:
 
             # Scale from 10s (phase=0) to 1s (phase=1) with power function
             base_exposure = 10.0
-            min_exposure = 0.1
+            min_exposure = 1
             exposure_range = base_exposure - min_exposure
 
             # More aggressive scaling (2.5 or 3.0 exponent)
