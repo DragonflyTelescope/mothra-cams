@@ -166,7 +166,7 @@ class ObservatoryCamera:
             return {
                 "exposure": 658 * u.microsecond,
                 "gain": 255,
-                "interval": 1 * u.hour,
+                "interval": 1 * u.minute,
                 "mode": "day_open",
             }
 
