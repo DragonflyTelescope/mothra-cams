@@ -149,13 +149,15 @@ class Almanac:
 
     def is_moon_up(self, datetime_arg=None):
         """
-        Check if the moon is currently above the horizon.
+        Check if the moon is currently above the horizon and get its phase.
 
         Args:
             datetime_arg: Time to check (None for current time)
 
         Returns:
-            bool: True if moon is above horizon
+            tuple: (is_up: bool, phase: float or None)
+                - is_up: True if moon is above horizon
+                - phase: 0.0-1.0 illumination fraction if up, None if down
         """
         # Create fresh observer with the appropriate time
         fresh_site, calculation_time = self._create_fresh_observer(datetime_arg)
@@ -166,7 +168,14 @@ class Almanac:
 
         # Moon is "up" if altitude is positive
         moon_altitude = np.rad2deg(moon.alt)
-        return moon_altitude > 0
+        is_up = moon_altitude > 0
+
+        if is_up:
+            # Get moon phase (0.0 to 1.0, where 0.0 = new moon, 1.0 = full moon)
+            phase = moon.phase / 100.0  # ephem.Moon.phase gives 0-100, convert to 0-1
+            return True, phase
+        else:
+            return False, None
 
     @property
     def moon_is_up(self):

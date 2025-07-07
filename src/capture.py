@@ -273,19 +273,35 @@ class ObservatoryCamera:
                 }
 
         # Full darkness (not in any twilight period)
-        if hasattr(self.almanac, "moon_is_up") and self.almanac.moon_is_up:
-            return {
-                "exposure": 5 * u.second,
-                "gain": 400,
-                "interval": 55 * u.second,
-                "mode": "dark_moonlit",
-            }
-        else:
+        moon_is_up, moon_phase = self.almanac.is_moon_up()
+        if not moon_is_up:
             return {
                 "exposure": 10 * u.second,
                 "gain": 420,
                 "interval": 55 * u.second,
                 "mode": "dark",
+            }
+        else:
+            # Moon is up - scale exposure based on phase
+            # Use aggressive scaling: moon brightness increases faster than linear
+
+            # Scale from 10s (phase=0) to 1s (phase=1) with power function
+            base_exposure = 10.0
+            min_exposure = 0.5
+            exposure_range = base_exposure - min_exposure
+
+            # More aggressive scaling (2.5 or 3.0 exponent)
+            scaled_factor = moon_phase**2.5  # Try 3.0 if you want even more aggressive
+            exposure_seconds = base_exposure - (exposure_range * scaled_factor)
+
+            # Ensure we stay within bounds
+            exposure_seconds = max(min_exposure, min(base_exposure, exposure_seconds))
+
+            return {
+                "exposure": exposure_seconds * u.second,
+                "gain": 420,
+                "interval": 55 * u.second,
+                "mode": f"dark_moon_{moon_phase * 100:.0f}pct",
             }
 
     def _get_progress_between_times(self, start_time, end_time, current_time):
