@@ -7,7 +7,7 @@ RUN apt-get update && apt-get upgrade -y && apt-get install -y \
     && rm -rf /var/lib/apt/lists/*
 
 # Install Python dependencies
-RUN pip install zwoasi pillow boto3 pytz astropy ephem numpy ghp-import \
+RUN pip install zwoasi pillow boto3 pytz astropy ephem numpy ghp-import requests \
     python-dotenv
 
 # Create app directory
