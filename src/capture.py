@@ -6,7 +6,6 @@ import time
 import astropy.units as u
 import boto3
 import numpy as np
-import requests
 import zwoasi as asi
 from botocore.exceptions import NoCredentialsError
 from dotenv import load_dotenv
@@ -25,16 +24,27 @@ asi.init("/usr/local/lib/libASICamera2.so")
 def is_enclosure_open():
     """Check if enclosure is open by reading roof status file via HTTP"""
     try:
-        # Make HTTP request with a reasonable timeout
-        response = requests.get("http://10.0.11.3/environment/Roof14.txt", timeout=5)
-        response.raise_for_status()  # Raises an HTTPError for bad responses
-
-        roof_status = response.text.strip()
+        with open("/mnt/environment/Roof14.txt", "r") as f:
+            roof_status = f.read().strip()
 
         if roof_status == "Closed":
             return False
         else:
             return True
+
+    except FileNotFoundError:
+        print("ERROR: Roof status file not found, trying backup")
+        try:
+            with open("/home/mothra/Roof14.txt", "r") as f:
+                roof_status = f.read().strip()
+
+            if roof_status == "Closed":
+                return False
+            else:
+                return True
+        except:
+            print("Backup failed.")
+            return False
 
     except Timeout:
         print("ERROR: Timeout retrieving roof status")
