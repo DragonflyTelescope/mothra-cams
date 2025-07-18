@@ -6,11 +6,11 @@ import time
 import astropy.units as u
 import boto3
 import numpy as np
+import requests
 import zwoasi as asi
 from botocore.exceptions import NoCredentialsError
 from dotenv import load_dotenv
 from PIL import Image
-from requests.exceptions import RequestException, Timeout
 
 from almanac import Almanac
 from datetime_manager import DateTimeManager
@@ -22,7 +22,6 @@ asi.init("/usr/local/lib/libASICamera2.so")
 
 
 def is_enclosure_open():
-    """Check if enclosure is open by reading roof status file via HTTP"""
     try:
         with open("/mnt/environment/Roof14.txt", "r") as f:
             roof_status = f.read().strip()
@@ -33,25 +32,28 @@ def is_enclosure_open():
             return True
 
     except FileNotFoundError:
-        print("ERROR: Roof status file not found, trying backup")
+        print("ERROR: Roof status file not found. Trying Server instead.")
         try:
-            with open("/home/mothra/Roof14.txt", "r") as f:
-                roof_status = f.read().strip()
+            r = requests.get("http://10.0.11.3/environment/Roof14.txt")
+            if r.status_code == 200:
+                if r.text == "Closed":
+                    return False
+                else:
+                    return True
+        except Exception as e:
+            print(f"Could not access server either: {e}.")
+            print("Last try: manual file in home dir.")
+            try:
+                with open("/home/mothra/Roof14.txt", "r") as f:
+                    roof_status = f.read().strip()
 
-            if roof_status == "Closed":
-                return False
-            else:
-                return True
-        except:
-            print("Backup failed.")
-            return False
-
-    except Timeout:
-        print("ERROR: Timeout retrieving roof status")
-        return False  # Assume closed if timeout
-    except RequestException as e:
-        print(f"ERROR retrieving roof status: {e}")
-        return False  # Assume closed if network error
+                if roof_status == "Closed":
+                    return False
+                else:
+                    return True
+            except:
+                print("No final luck. Considering dome to be closed.")
+                return False  # Assume closed if file missing
     except Exception as e:
         print(f"ERROR reading roof status: {e}")
         return False
