@@ -124,6 +124,27 @@ class ObservatoryCamera:
             print(f"\n=== Updated almanac for observing night {observing_date} ===")
             self.print_schedule()
 
+    def get_mount_status(self):
+        """Fetch current mount status from local API"""
+        try:
+            response = requests.get("http://localhost:5500/mount/status", timeout=5)
+            if response.status_code == 200:
+                mount_data = response.json()
+                if mount_data.get("success") and mount_data.get("payload"):
+                    payload = mount_data["payload"]
+                    return {
+                        "mount_alt": payload.get("mount_alt"),
+                        "mount_az": payload.get("mount_az"),
+                        "mount_ra": payload.get("mount_ra"),
+                        "mount_dec": payload.get("mount_dec"),
+                        "connected": payload.get("connected", False),
+                        "tracking": payload.get("tracking", False),
+                    }
+            return None
+        except Exception as e:
+            print(f"Failed to get mount status: {e}")
+            return None
+
     def print_schedule(self):
         """Print today's astronomical schedule"""
         print(f"Sunset: {self.almanac.sunset.strftime('%H:%M')}")
@@ -564,6 +585,9 @@ class ObservatoryCamera:
     def save_status_to_s3(self, settings, timestamp):
         """Save status information directly to S3"""
         try:
+            # Get mount status
+            mount_status = self.get_mount_status()
+
             # Create status description based on mode
             if settings["mode"] == "day_closed":
                 description = (
@@ -591,6 +615,7 @@ class ObservatoryCamera:
                 "gain": settings["gain"],
                 "next_update_interval": str(settings["interval"]),
                 "status": "online",
+                "mount_status": mount_status,  # Add mount status
             }
 
             # Save to temp file and upload

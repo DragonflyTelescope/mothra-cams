@@ -145,7 +145,7 @@
             
             <div class="status-description" id="status-description">Checking status...</div>
             
-            <div class="technical-info" id="technical-info" style="display: none;">
+            <<div class="technical-info" id="technical-info" style="display: none;">
                 <div class="tech-item">
                     <div class="tech-label">Exposure Time</div>
                     <div class="tech-value" id="exposure-time">-</div>
@@ -162,6 +162,22 @@
                     <div class="tech-label">Mode</div>
                     <div class="tech-value" id="camera-mode">-</div>
                 </div>
+                <div class="tech-item">
+                    <div class="tech-label">Mount Alt</div>
+                    <div class="tech-value" id="mount-alt">-</div>
+                </div>
+                <div class="tech-item">
+                    <div class="tech-label">Mount Az</div>
+                    <div class="tech-value" id="mount-az">-</div>
+                </div>
+                <div class="tech-item">
+                    <div class="tech-label">Tracking</div>
+                    <div class="tech-value" id="mount-tracking">-</div>
+                </div>
+                <div class="tech-item">
+                    <div class="tech-label">Coordinates</div>
+                    <div class="tech-value" id="mount-coords">-</div>
+                </div>
             </div>
         </div>
         
@@ -176,47 +192,61 @@
 
     <script>
         async function updateStatus() {
-            try {
-                const response = await fetch(`https://d3j53g43boxwvi.cloudfront.net/b14m11/b14m11_status.json?t=${Date.now()}`);
-                const status = await response.json();
-                
-                const indicator = document.getElementById('status-indicator');
-                const statusText = document.getElementById('status-text');
-                const statusDescription = document.getElementById('status-description');
-                const technicalInfo = document.getElementById('technical-info');
-                
-                if (status.status === 'online') {
-                    indicator.className = 'status-indicator';
-                    statusText.textContent = 'Online';
-                    statusDescription.innerHTML = `${status.description}<br><strong>Last update:</strong> ${status.last_update_friendly}`;
-                    
-                    // Show technical information
-                    technicalInfo.style.display = 'grid';
-                    document.getElementById('exposure-time').textContent = status.exposure_time || '-';
-                    document.getElementById('gain-value').textContent = status.gain || '-';
-                    document.getElementById('update-interval').textContent = status.next_update_interval || '-';
-                    document.getElementById('camera-mode').textContent = status.mode || '-';
-                    
-                } else {
-                    indicator.className = 'status-indicator offline';
-                    statusText.textContent = 'Offline';
-                    statusDescription.textContent = status.description || 'Camera offline';
-                    technicalInfo.style.display = 'none';
-                }
-                
-            } catch (error) {
-                console.log('Status fetch failed:', error);
-                const indicator = document.getElementById('status-indicator');
-                const statusText = document.getElementById('status-text');
-                const statusDescription = document.getElementById('status-description');
-                const technicalInfo = document.getElementById('technical-info');
-                
-                indicator.className = 'status-indicator offline';
-                statusText.textContent = 'Offline';
-                statusDescription.textContent = 'Status information unavailable';
-                technicalInfo.style.display = 'none';
+    try {
+        const response = await fetch(`https://d3j53g43boxwvi.cloudfront.net/b14m11/b14m11_status.json?t=${Date.now()}`);
+        const status = await response.json();
+        
+        const indicator = document.getElementById('status-indicator');
+        const statusText = document.getElementById('status-text');
+        const statusDescription = document.getElementById('status-description');
+        const technicalInfo = document.getElementById('technical-info');
+        
+        if (status.status === 'online') {
+            indicator.className = 'status-indicator';
+            statusText.textContent = 'Online';
+            statusDescription.innerHTML = `${status.description}<br><strong>Last update:</strong> ${status.last_update_friendly}`;
+            
+            // Show technical information
+            technicalInfo.style.display = 'grid';
+            document.getElementById('exposure-time').textContent = status.exposure_time || '-';
+            document.getElementById('gain-value').textContent = status.gain || '-';
+            document.getElementById('update-interval').textContent = status.next_update_interval || '-';
+            document.getElementById('camera-mode').textContent = status.mode || '-';
+            
+            // Mount status
+            if (status.mount_status) {
+                const mount = status.mount_status;
+                document.getElementById('mount-alt').textContent = mount.mount_alt ? `${mount.mount_alt.toFixed(1)}°` : '-';
+                document.getElementById('mount-az').textContent = mount.mount_az ? `${mount.mount_az.toFixed(1)}°` : '-';
+                document.getElementById('mount-tracking').textContent = mount.connected ? (mount.tracking ? '✓ Tracking' : '✗ Not tracking') : 'Disconnected';
+                document.getElementById('mount-coords').textContent = mount.mount_ra && mount.mount_dec ? `${mount.mount_ra}, ${mount.mount_dec}` : '-';
+            } else {
+                document.getElementById('mount-alt').textContent = 'N/A';
+                document.getElementById('mount-az').textContent = 'N/A';
+                document.getElementById('mount-tracking').textContent = 'N/A';
+                document.getElementById('mount-coords').textContent = 'N/A';
             }
+            
+        } else {
+            indicator.className = 'status-indicator offline';
+            statusText.textContent = 'Offline';
+            statusDescription.textContent = status.description || 'Camera offline';
+            technicalInfo.style.display = 'none';
         }
+        
+    } catch (error) {
+        console.log('Status fetch failed:', error);
+        const indicator = document.getElementById('status-indicator');
+        const statusText = document.getElementById('status-text');
+        const statusDescription = document.getElementById('status-description');
+        const technicalInfo = document.getElementById('technical-info');
+        
+        indicator.className = 'status-indicator offline';
+        statusText.textContent = 'Offline';
+        statusDescription.textContent = 'Status information unavailable';
+        technicalInfo.style.display = 'none';
+    }
+}
         
         function refreshImage() {
             const img = document.getElementById('main-image');
