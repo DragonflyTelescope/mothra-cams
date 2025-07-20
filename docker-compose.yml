@@ -7,6 +7,7 @@ services:
       - /home/mothra/git/mothra-cams:/repo
       - /dev/bus/usb:/dev/bus/usb
       - /mnt/environment/:/mnt/environment/
+      - /home/mothra:/home/mothra/
     devices:
       - /dev/bus/usb
     #privileged: true
