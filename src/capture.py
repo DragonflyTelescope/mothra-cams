@@ -191,8 +191,8 @@ class ObservatoryCamera:
         if not is_enclosure_open():
             if is_daylight:
                 return {
-                    "exposure": 1 * u.second,
-                    "gain": 300,
+                    "exposure": 0.1 * u.second,
+                    "gain": 250,
                     "interval": 1 * u.hour,
                     "mode": "day_closed",
                 }
