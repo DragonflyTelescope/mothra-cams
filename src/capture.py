@@ -21,7 +21,7 @@ load_dotenv()
 asi.init("/usr/local/lib/libASICamera2.so")
 
 
-def is_enclosure_open():
+def is_enclosure_open(verbose=False):
     try:
         with open("/mnt/environment/Roof14.txt", "r") as f:
             roof_status = f.read().strip()
@@ -32,7 +32,8 @@ def is_enclosure_open():
             return True
 
     except FileNotFoundError:
-        print("ERROR: Roof status file not found. Trying Server instead.")
+        if verbose:
+            print("ERROR: Roof status file not found. Trying Server instead.")
         try:
             r = requests.get("http://10.0.11.3/environment/Roof14.txt")
             if r.status_code == 200:
@@ -41,8 +42,9 @@ def is_enclosure_open():
                 else:
                     return True
         except Exception as e:
-            print(f"Could not access server either: {e}.")
-            print("Last try: manual file in home dir.")
+            if verbose:
+                print(f"Could not access server either: {e}.")
+                print("Last try: manual file in home dir.")
             try:
                 with open("/home/mothra/Roof14.txt", "r") as f:
                     roof_status = f.read().strip()
@@ -52,10 +54,11 @@ def is_enclosure_open():
                 else:
                     return True
             except:
-                print("No final luck. Considering dome to be closed.")
+                print("All checks failed. Considering dome to be closed.")
                 return False  # Assume closed if file missing
     except Exception as e:
-        print(f"ERROR reading roof status: {e}")
+        if verbose:
+            print(f"ERROR reading roof status: {e}")
         return False
 
 
