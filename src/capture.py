@@ -21,47 +21,6 @@ load_dotenv()
 asi.init("/usr/local/lib/libASICamera2.so")
 
 
-def is_enclosure_open(verbose=False):
-    try:
-        with open("/mnt/environment/Roof14.txt", "r") as f:
-            roof_status = f.read().strip()
-
-        if roof_status == "Closed":
-            return False
-        else:
-            return True
-
-    except FileNotFoundError:
-        if verbose:
-            print("ERROR: Roof status file not found. Trying Server instead.")
-        try:
-            r = requests.get("http://10.0.11.3/environment/Roof14.txt")
-            if r.status_code == 200:
-                if r.text == "Closed":
-                    return False
-                else:
-                    return True
-        except Exception as e:
-            if verbose:
-                print(f"Could not access server either: {e}.")
-                print("Last try: manual file in home dir.")
-            try:
-                with open("/home/mothra/Roof14.txt", "r") as f:
-                    roof_status = f.read().strip()
-
-                if roof_status == "Closed":
-                    return False
-                else:
-                    return True
-            except:
-                print("All checks failed. Considering dome to be closed.")
-                return False  # Assume closed if file missing
-    except Exception as e:
-        if verbose:
-            print(f"ERROR reading roof status: {e}")
-        return False
-
-
 class ObservatoryCamera:
     def __init__(
         self,
@@ -188,7 +147,14 @@ class ObservatoryCamera:
         # Now we have a clean is_daylight boolean that works regardless of almanac timing
 
         # Check enclosure status first
-        if not is_enclosure_open():
+        enclosure_status_dict = requests.get(
+            "http://0.0.0.0:8010/building/14/status"
+        ).json()
+        enclosure_status = enclosure_status_dict.get("status", None)
+
+        is_enclosure_open = enclosure_status == "Open"
+
+        if not is_enclosure_open:
             if is_daylight:
                 return {
                     "exposure": 0.1 * u.second,
@@ -778,7 +744,6 @@ def main():
         s3_bucket=os.environ.get("S3_BUCKET_NAME"),
         cleanup_days=7,
     )
-    print(f"INITIAL ROOF STATUS: {is_enclosure_open()}")
 
     obs_camera.run_continuous()
 
