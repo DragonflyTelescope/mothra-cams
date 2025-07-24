@@ -134,17 +134,15 @@ class ObservatoryCamera:
                 "http://localhost:5500/mount/cached-pointing", timeout=5
             )
             if response.status_code == 200:
-                mount_data = response.json()
-                if mount_data.get("success") and mount_data.get("payload"):
-                    payload = mount_data["payload"]
-                    return {
-                        "mount_alt": payload.get("mount_alt"),
-                        "mount_az": payload.get("mount_az"),
-                        "mount_ra": payload.get("mount_ra"),
-                        "mount_dec": payload.get("mount_dec"),
-                        "connected": payload.get("connected", False),
-                        "tracking": payload.get("tracking", False),
-                    }
+                payload = response.json()
+                return {
+                    "mount_alt": payload.get("mount_alt"),
+                    "mount_az": payload.get("mount_az"),
+                    "mount_ra": payload.get("mount_ra"),
+                    "mount_dec": payload.get("mount_dec"),
+                    "connected": payload.get("connected", "UNKNOWN"),
+                    "tracking": payload.get("tracking", "UNKNOWN"),
+                }
             return None
         except Exception as e:
             print(f"Failed to get mount status: {e}")
