@@ -131,7 +131,7 @@ class ObservatoryCamera:
         """Fetch current mount status from local API"""
         try:
             response = requests.get(
-                "http://localhost:5500/mount/status?log_request=False", timeout=5
+                "http://localhost:5500/mount/cached-pointing", timeout=5
             )
             if response.status_code == 200:
                 mount_data = response.json()
