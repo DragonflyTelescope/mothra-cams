@@ -130,7 +130,9 @@ class ObservatoryCamera:
     def get_mount_status(self):
         """Fetch current mount status from local API"""
         try:
-            response = requests.get("http://localhost:5500/mount/status", timeout=5)
+            response = requests.get(
+                "http://localhost:5500/mount/status?log_request=False", timeout=5
+            )
             if response.status_code == 200:
                 mount_data = response.json()
                 if mount_data.get("success") and mount_data.get("payload"):
