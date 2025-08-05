@@ -247,24 +247,26 @@
         technicalInfo.style.display = 'none';
     }
 }
-        
         function refreshPage() {
-    // Update status before reload
-    document.getElementById('last-update').textContent = 
-        `Page refreshing: ${new Date().toLocaleTimeString()}`;
-    
-    // Small delay so user can see the status update
-    setTimeout(() => {
-        location.reload();
-    }, 100);
-}
+            // Update status before reload
+            document.getElementById('last-update').textContent = 
+                `Page refreshing: ${new Date().toLocaleTimeString()}`;
+            
+            // Small delay so user can see the status update
+            setTimeout(() => {
+                location.reload();
+            }, 100);
+        }
 
-// Initial status
-document.getElementById('last-update').textContent = 
-    `Page loaded: ${new Date().toLocaleTimeString()}`;
+        // Initial load
+        document.getElementById('last-update').textContent = 
+            `Page loaded: ${new Date().toLocaleTimeString()}`;
+        
+        // Load status immediately on page load
+        updateStatus();
 
-// Auto-refresh every 15 seconds
-setInterval(refreshPage, 15000);
+        // Auto-refresh every 15 seconds
+        setInterval(refreshPage, 15000);
     </script>
 </body>
 </html>
