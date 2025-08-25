@@ -1,7 +1,11 @@
 # Example configuration for ASI676MC all-sky color camera
 services:
   observatory-camera:
-    build: .
+    build: 
+      context: .
+      dockerfile: Dockerfile
+      args:
+        ARCH: ${ARCH:-x64}  # Default to x64, override with ARCH environment variable
     container_name: observatory-camera-allsky
     user: "1000:1000"
     volumes:

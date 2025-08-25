@@ -1,5 +1,8 @@
 FROM python:3.11-slim
 
+# Build argument to specify architecture (x64 or armv8)
+ARG ARCH=x64
+
 # Install system dependencies
 RUN apt-get update && apt-get upgrade -y && apt-get install -y \
     libusb-1.0-0-dev \
@@ -16,14 +19,22 @@ RUN pip install --no-deps zwoasi
 # Create app directory
 WORKDIR /app
 
-# Copy the ZWO SDK to multiple standard locations
-COPY ./ASI_linux_mac_SDK_V1.38/lib/x64/libASICamera2.so /usr/local/lib/
-COPY ./ASI_linux_mac_SDK_V1.38/lib/x64/libASICamera2.so /usr/lib/
-COPY ./ASI_linux_mac_SDK_V1.38/lib/x64/libASICamera2.so /app/
+# Copy the ZWO SDK for the specified architecture
+# This will copy from either x64/ or armv8/ based on build arg
+COPY ./ASI_linux_mac_SDK_V1.38/lib/${ARCH}/libASICamera2.so /usr/local/lib/
+COPY ./ASI_linux_mac_SDK_V1.38/lib/${ARCH}/libASICamera2.so /usr/lib/
+COPY ./ASI_linux_mac_SDK_V1.38/lib/${ARCH}/libASICamera2.so /app/
+
+# Copy version-specific files if they exist (different versions for different archs)
+COPY ./ASI_linux_mac_SDK_V1.38/lib/${ARCH}/libASICamera2.so.* /usr/local/lib/ 2>/dev/null || true
 
 # Create symbolic links for different naming conventions
-RUN ln -sf /usr/local/lib/libASICamera2.so /usr/local/lib/libASICamera2.so.1
-RUN ln -sf /usr/local/lib/libASICamera2.so /usr/local/lib/libASICamera2.so.1.38
+RUN ln -sf /usr/local/lib/libASICamera2.so /usr/local/lib/libASICamera2.so.1 || true
+RUN ln -sf /usr/local/lib/libASICamera2.so /usr/local/lib/libASICamera2.so.1.38 || true
+RUN ln -sf /usr/local/lib/libASICamera2.so /usr/local/lib/libASICamera2.so.1.39 || true
+
+# Show what we copied for debugging
+RUN echo "Architecture: ${ARCH}" && ls -la /usr/local/lib/libASI*
 
 # Copy your Python files
 COPY ./src/datetime_manager.py ./src/almanac.py ./src/capture.py /app/

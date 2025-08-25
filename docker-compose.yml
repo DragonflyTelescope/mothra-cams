@@ -1,6 +1,10 @@
 services:
   observatory-camera:
-    build: .
+    build: 
+      context: .
+      dockerfile: Dockerfile
+      args:
+        ARCH: ${ARCH:-x64}  # Default to x64, override with ARCH environment variable
     container_name: observatory-camera
     user: "1000:1000"
     volumes:

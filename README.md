@@ -19,19 +19,49 @@ Camera configuration is handled via environment variables:
 
 ## Docker Deployment
 
+### Architecture Support
+
+The system supports both x64 and ARM64 (Raspberry Pi) architectures:
+
+- **x64 Linux**: Uses `ASI_linux_mac_SDK_V1.38/lib/x64/` libraries
+- **ARM64 (Raspberry Pi 4)**: Uses `ASI_linux_mac_SDK_V1.38/lib/armv8/` libraries
+
 ### Standard Monochrome Camera
+
+**x64 Linux:**
 ```bash
 docker-compose up -d
+# or explicitly:
+ARCH=x64 docker-compose up -d
+```
+
+**Raspberry Pi:**
+```bash
+ARCH=armv8 docker-compose up -d
 ```
 
 ### Color All-Sky Camera (ASI676MC)
+
+**x64 Linux:**
 ```bash
 docker-compose -f docker-compose.allsky.yml up -d
 ```
 
-### Testing Color Camera (No S3 Upload)
+**Raspberry Pi:**
 ```bash
-docker-compose -f docker-compose.test.yml up -d
+ARCH=armv8 docker-compose -f docker-compose.allsky.yml up -d
+```
+
+### Testing Color Camera (No S3 Upload)
+
+**Raspberry Pi (recommended):**
+```bash
+docker-compose -f docker-compose.test-rpi.yml up -d
+```
+
+**x64 Linux:**
+```bash
+docker-compose -f docker-compose.test-x64.yml up -d
 ```
 
 ## Testing
@@ -40,20 +70,27 @@ docker-compose -f docker-compose.test.yml up -d
 
 **Important**: The test containers use `DEBUG_MODE=true` which prevents continuous imaging, allowing you to run manual tests without interference.
 
-#### macOS USB Device Access
+#### Architecture-Specific Testing
 
-On macOS, USB device access in Docker requires special configuration:
+**Raspberry Pi 4 (ARM64):**
+```bash
+# Build and start the ARM64 container
+docker-compose -f docker-compose.test-rpi.yml up -d
 
-1. **Start the test container** (macOS version with USB access):
-   ```bash
-   # Option 1: Use the macOS-optimized compose file
-   docker-compose -f docker-compose.test-macos.yml up -d
-   
-   # Option 2: Use the standard test file (also macOS-compatible)
-   docker-compose -f docker-compose.test-asi676mc.yml up -d
-   ```
-   
-**Note**: The containers use `privileged: true` for USB access on macOS. If you prefer not to use privileged mode, you can try the alternative device mounting options commented in the compose files.
+# Verify camera detection
+docker logs asi676mc-test-rpi
+```
+
+**x64 Linux:**
+```bash
+# Build and start the x64 container  
+docker-compose -f docker-compose.test-x64.yml up -d
+
+# Verify camera detection
+docker logs asi676mc-test-x64
+```
+
+**Note**: The system automatically selects the correct ASI SDK library (armv8 or x64) based on the Docker compose file used.
    
 2. **Verify the container started and camera is detected**:
    ```bash
@@ -71,15 +108,23 @@ On macOS, USB device access in Docker requires special configuration:
    ```
 
 3. **Run the test script inside the container**:
+   
+   **Raspberry Pi:**
    ```bash
    # Basic test with default settings (0.01s exposure, gain 200)
-   docker exec -it asi676mc-test python test_color_camera.py
+   docker exec -it asi676mc-test-rpi python test_color_camera.py
    
    # Test with custom exposure and gain
-   docker exec -it asi676mc-test python test_color_camera.py --exposure 2.0 --gain 300
+   docker exec -it asi676mc-test-rpi python test_color_camera.py --exposure 2.0 --gain 300
+   ```
    
-   # Test mono mode
-   docker exec -it asi676mc-test python test_color_camera.py --exposure 0.001 --gain 100 --camera-type mono
+   **x64 Linux:**
+   ```bash
+   # Basic test with default settings
+   docker exec -it asi676mc-test-x64 python test_color_camera.py
+   
+   # Test with custom exposure and gain  
+   docker exec -it asi676mc-test-x64 python test_color_camera.py --exposure 2.0 --gain 300
    ```
 
 3. **Check the results**:
@@ -88,12 +133,20 @@ On macOS, USB device access in Docker requires special configuration:
 
 4. **Check container logs** (to see debug mode status):
    ```bash
-   docker logs asi676mc-test
+   # Raspberry Pi
+   docker logs asi676mc-test-rpi
+   
+   # x64 Linux
+   docker logs asi676mc-test-x64
    ```
 
 5. **Stop the test container**:
    ```bash
-   docker-compose -f docker-compose.test-asi676mc.yml down
+   # Raspberry Pi
+   docker-compose -f docker-compose.test-rpi.yml down
+   
+   # x64 Linux
+   docker-compose -f docker-compose.test-x64.yml down
    ```
 
 ### Debug Mode vs Production Mode
