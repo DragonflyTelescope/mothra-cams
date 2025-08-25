@@ -25,7 +25,7 @@ COPY ./ASI_linux_mac_SDK_V1.38/lib/${ARCH}/libASICamera2.a /usr/local/lib/
 RUN ldconfig
 
 # Copy your Python files
-COPY ./src/ /app/src/
+COPY ./src/ /app/
 COPY ./*.py /app/
 
 # Set environment for better debugging
