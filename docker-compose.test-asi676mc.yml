@@ -6,14 +6,15 @@ services:
     container_name: asi676mc-test
     user: "1000:1000"
     volumes:
-      - /Users/ipasha/Documents:/tmp  # Mount host Documents to container /tmp
+      - /home/pi/asi_testimages:/tmp
+      - /dev/bus/usb:/dev/bus/usb
       # Note: On macOS, USB devices are handled differently
       # ZWO cameras should be accessible without explicit device mounting
     # macOS USB device access - try these options in order of preference:
     privileged: true  # Option 1: Full privileges (works but broad access)
     # Alternative options to try if privileged doesn't work:
-    # devices:
-    #   - /dev:/dev  # Option 2: Mount entire /dev directory
+    devices:
+      - /dev/bus/usb
     # security_opt:
     #   - seccomp:unconfined  # Option 3: Disable seccomp for USB access
     env_file:
