@@ -1,0 +1,34 @@
+# Test configuration specifically for ASI676MC color camera
+# Mounts /Users/ipasha/Documents to /tmp in container for easy access to test images
+services:
+  observatory-camera:
+    build: .
+    container_name: asi676mc-test
+    user: "1000:1000"
+    volumes:
+      - /Users/ipasha/Documents:/tmp  # Mount host Documents to container /tmp
+      # Note: On macOS, USB devices are handled differently
+      # ZWO cameras should be accessible without explicit device mounting
+    # macOS USB device access - try these options in order of preference:
+    privileged: true  # Option 1: Full privileges (works but broad access)
+    # Alternative options to try if privileged doesn't work:
+    # devices:
+    #   - /dev:/dev  # Option 2: Mount entire /dev directory
+    # security_opt:
+    #   - seccomp:unconfined  # Option 3: Disable seccomp for USB access
+    env_file:
+      - .env
+    restart: "no"  # Don't restart automatically for testing
+    environment:
+      - TZ=America/Santiago
+      # ASI676MC color camera test configuration
+      - CAMERA_ID=0
+      - CAMERA_NAME=test-asi676mc
+      - CAMERA_TYPE=color  # ASI676MC is a color camera
+      - SKIP_S3_UPLOAD=true  # Skip S3 for testing - files saved to /tmp/
+      - DEBUG_MODE=true  # Enable debug mode - no continuous capture
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"

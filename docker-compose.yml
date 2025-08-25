@@ -16,6 +16,12 @@ services:
     restart: unless-stopped
     environment:
       - TZ=America/Santiago
+      # Camera configuration - customize these for each deployment
+      - CAMERA_ID=0
+      - CAMERA_NAME=b14m11
+      - CAMERA_TYPE=mono  # "mono" or "color"
+      - SKIP_S3_UPLOAD=false  # Set to "true" for local testing
+      - DEBUG_MODE=false  # Set to "true" to disable continuous capture (for manual testing)
     logging:
       driver: "json-file"
       options:
