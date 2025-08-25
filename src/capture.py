@@ -7,7 +7,6 @@ import astropy.units as u
 import boto3
 import numpy as np
 import requests
-import zwoasi as asi
 from botocore.exceptions import NoCredentialsError
 from dotenv import load_dotenv
 from PIL import Image
@@ -15,10 +14,46 @@ from PIL import Image
 from almanac import Almanac
 from datetime_manager import DateTimeManager
 
+# Import zwoasi without auto-initialization
+import zwoasi as asi
+
 load_dotenv()
 
-# Initialize
-asi.init("/usr/local/lib/libASICamera2.so")
+# Initialize ASI library with multiple fallback paths
+def init_asi_library():
+    """Initialize ASI library with fallback paths"""
+    library_paths = [
+        "/usr/local/lib/libASICamera2.so",
+        "/usr/lib/libASICamera2.so", 
+        "/app/libASICamera2.so",
+        "./libASICamera2.so",
+        "libASICamera2.so"
+    ]
+    
+    # Check if already initialized
+    try:
+        asi.get_num_cameras()
+        print("ASI library already initialized")
+        return True
+    except:
+        pass
+    
+    for lib_path in library_paths:
+        try:
+            print(f"Trying to initialize ASI library from: {lib_path}")
+            asi.init(lib_path)
+            num_cameras = asi.get_num_cameras()
+            print(f"ASI library initialized successfully from {lib_path}")
+            print(f"Found {num_cameras} camera(s)")
+            return True
+        except Exception as e:
+            print(f"Failed to initialize from {lib_path}: {e}")
+            continue
+    
+    raise Exception("Could not initialize ASI library from any path")
+
+# Initialize the library
+init_asi_library()
 
 
 class ObservatoryCamera:

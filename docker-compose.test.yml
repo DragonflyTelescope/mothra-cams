@@ -1,0 +1,30 @@
+# Example configuration for testing color camera without S3 upload
+services:
+  observatory-camera:
+    build: .
+    container_name: observatory-camera-test
+    user: "1000:1000"
+    volumes:
+      - /home/mothra/git/mothra-cams:/repo
+      - /dev/bus/usb:/dev/bus/usb
+      - /mnt/environment/:/mnt/environment/
+      - /home/mothra:/home/mothra/
+      - /Users/ipasha/Documents:/tmp  # Mount host Documents to container /tmp for test output
+    devices:
+      - /dev/bus/usb
+    env_file:
+      - .env
+    restart: unless-stopped
+    environment:
+      - TZ=America/Santiago
+      # Test configuration for color camera without S3 upload
+      - CAMERA_ID=0
+      - CAMERA_NAME=test-asi676mc
+      - CAMERA_TYPE=color  # ASI676MC is a color camera
+      - SKIP_S3_UPLOAD=true  # Skip S3 for testing - files saved to /tmp/
+      - DEBUG_MODE=true  # Enable debug mode - no continuous capture
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"

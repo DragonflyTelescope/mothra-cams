@@ -1,0 +1,29 @@
+# Example configuration for ASI676MC all-sky color camera
+services:
+  observatory-camera:
+    build: .
+    container_name: observatory-camera-allsky
+    user: "1000:1000"
+    volumes:
+      - /home/mothra/git/mothra-cams:/repo
+      - /dev/bus/usb:/dev/bus/usb
+      - /mnt/environment/:/mnt/environment/
+      - /home/mothra:/home/mothra/
+      - /Users/ipasha/Documents:/tmp  # Mount host Documents to container /tmp for test output
+    devices:
+      - /dev/bus/usb
+    env_file:
+      - .env
+    restart: unless-stopped
+    environment:
+      - TZ=America/Santiago
+      # All-sky color camera configuration
+      - CAMERA_ID=0
+      - CAMERA_NAME=allsky
+      - CAMERA_TYPE=color  # ASI676MC is a color camera
+      - SKIP_S3_UPLOAD=false
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"

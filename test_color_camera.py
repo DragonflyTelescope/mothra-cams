@@ -17,15 +17,15 @@ import os
 import sys
 import time
 import argparse
-from src.capture import ObservatoryCamera
+from src.capture import ObservatoryCamera, init_asi_library
 import zwoasi as asi
 
 def test_camera(exposure_time=0.01, gain=200, camera_type="color"):
     """Test the camera functionality"""
     
-    # Initialize the ASI library
+    # Initialize the ASI library using the same function as capture.py
     try:
-        asi.init("/usr/local/lib/libASICamera2.so")
+        init_asi_library()
     except Exception as e:
         print(f"Failed to initialize ASI library: {e}")
         print("Make sure the ASI SDK is properly installed")
