@@ -7,6 +7,9 @@ import astropy.units as u
 import boto3
 import numpy as np
 import requests
+
+# Import zwoasi without auto-initialization
+import zwoasi as asi
 from botocore.exceptions import NoCredentialsError
 from dotenv import load_dotenv
 from PIL import Image
@@ -14,22 +17,20 @@ from PIL import Image
 from almanac import Almanac
 from datetime_manager import DateTimeManager
 
-# Import zwoasi without auto-initialization
-import zwoasi as asi
-
 load_dotenv()
+
 
 # Initialize ASI library with multiple fallback paths
 def init_asi_library():
     """Initialize ASI library with fallback paths"""
     library_paths = [
         "/usr/local/lib/libASICamera2.so",
-        "/usr/lib/libASICamera2.so", 
+        "/usr/lib/libASICamera2.so",
         "/app/libASICamera2.so",
         "./libASICamera2.so",
-        "libASICamera2.so"
+        "libASICamera2.so",
     ]
-    
+
     # Check if already initialized
     try:
         asi.get_num_cameras()
@@ -37,7 +38,7 @@ def init_asi_library():
         return True
     except:
         pass
-    
+
     for lib_path in library_paths:
         try:
             print(f"Trying to initialize ASI library from: {lib_path}")
@@ -49,8 +50,9 @@ def init_asi_library():
         except Exception as e:
             print(f"Failed to initialize from {lib_path}: {e}")
             continue
-    
+
     raise Exception("Could not initialize ASI library from any path")
+
 
 # Initialize the library
 init_asi_library()
@@ -68,17 +70,22 @@ class ObservatoryCamera:
     ):
         self.camera = asi.Camera(camera_id)
         self.camera_info = self.camera.get_camera_property()
-        
+
         # Get configuration from environment or use defaults
         self.camera_name = camera_name or os.environ.get("CAMERA_NAME", "b14m11")
-        self.camera_type = camera_type or os.environ.get("CAMERA_TYPE", "mono")  # "mono" or "color"
+        self.camera_type = camera_type or os.environ.get(
+            "CAMERA_TYPE", "mono"
+        )  # "mono" or "color"
         self.s3_bucket = s3_bucket
         self.cleanup_days = cleanup_days
-        self.skip_s3_upload = skip_s3_upload or os.environ.get("SKIP_S3_UPLOAD", "false").lower() == "true"
-        
+        self.skip_s3_upload = (
+            skip_s3_upload
+            or os.environ.get("SKIP_S3_UPLOAD", "false").lower() == "true"
+        )
+
         # Detect if camera is color based on camera name or type setting
         self.is_color_camera = self._detect_color_camera()
-        
+
         # Check if we're in debug mode (don't start continuous capture)
         self.debug_mode = os.environ.get("DEBUG_MODE", "false").lower() == "true"
 
@@ -100,7 +107,9 @@ class ObservatoryCamera:
 
         print(f"Using camera: {self.camera_info['Name']}")
         print(f"Camera name: {self.camera_name}")
-        print(f"Camera type: {self.camera_type} ({'color' if self.is_color_camera else 'mono'})")
+        print(
+            f"Camera type: {self.camera_type} ({'color' if self.is_color_camera else 'mono'})"
+        )
         print(f"S3 upload: {'disabled' if self.skip_s3_upload else 'enabled'}")
         print(f"Debug mode: {'enabled' if self.debug_mode else 'disabled'}")
         if not self.debug_mode:
@@ -119,7 +128,7 @@ class ObservatoryCamera:
             observing_date = current_time.strftime("%Y-%m-%d")
 
         return observing_date
-    
+
     def _detect_color_camera(self):
         """Detect if camera is color based on configuration and camera model"""
         # First check explicit type setting
@@ -127,15 +136,15 @@ class ObservatoryCamera:
             return True
         elif self.camera_type.lower() == "mono":
             return False
-            
+
         # Auto-detect based on camera model name
-        camera_model = self.camera_info.get('Name', '').upper()
-        
+        camera_model = self.camera_info.get("Name", "").upper()
+
         # ASI676MC is explicitly a color camera
-        if 'ASI676MC' in camera_model or 'MC' in camera_model:
+        if "ASI676MC" in camera_model or "MC" in camera_model:
             print(f"Auto-detected color camera based on model: {camera_model}")
             return True
-            
+
         # Default to mono for other models
         return False
 
@@ -161,7 +170,7 @@ class ObservatoryCamera:
         """Fetch current mount status from local API"""
         try:
             response = requests.get(
-                "http://localhost:5500/mount/cached-pointing", timeout=5
+                "http://10.14.11.220:5500/mount/cached-pointing", timeout=5
             )
             if response.status_code == 200:
                 payload = response.json()
@@ -480,7 +489,9 @@ class ObservatoryCamera:
                 except:
                     pass
 
-                print(f"Processing {len(image_array)} bytes for {width}x{height} {'color' if self.is_color_camera else 'mono'} image")
+                print(
+                    f"Processing {len(image_array)} bytes for {width}x{height} {'color' if self.is_color_camera else 'mono'} image"
+                )
 
                 if self.is_color_camera:
                     # Color camera: data comes as RGB24, so 3 bytes per pixel
@@ -494,7 +505,9 @@ class ObservatoryCamera:
                             print(f"Color reshape failed: {e}")
                             return None
                     else:
-                        print(f"Unexpected color data size: got {len(image_array)}, expected {expected_size}")
+                        print(
+                            f"Unexpected color data size: got {len(image_array)}, expected {expected_size}"
+                        )
                         return None
                 else:
                     # Mono camera: single channel data
@@ -509,12 +522,18 @@ class ObservatoryCamera:
                             total_pixels = len(image_array)
                             estimated_width = int(np.sqrt(total_pixels))
                             estimated_height = total_pixels // estimated_width
-                            print(f"Trying estimated dimensions: {estimated_width}x{estimated_height}")
-                            return image_array.reshape((estimated_height, estimated_width))
+                            print(
+                                f"Trying estimated dimensions: {estimated_width}x{estimated_height}"
+                            )
+                            return image_array.reshape(
+                                (estimated_height, estimated_width)
+                            )
                     else:
-                        print(f"Unexpected mono data size: got {len(image_array)}, expected {expected_size}")
+                        print(
+                            f"Unexpected mono data size: got {len(image_array)}, expected {expected_size}"
+                        )
                         return None
-                        
+
             elif isinstance(image_data, np.ndarray):
                 # Already processed data
                 if image_data.dtype != np.uint8:
@@ -529,13 +548,14 @@ class ObservatoryCamera:
             else:
                 print(f"Unexpected data type: {type(image_data)}")
                 return None
-                
+
         except Exception as e:
             print(f"Error processing image data: {e}")
             import traceback
+
             traceback.print_exc()
             return None
-    
+
     def save_image_to_s3(self, image_data, settings):
         """Save image directly to S3 in all formats"""
         try:
@@ -548,11 +568,11 @@ class ObservatoryCamera:
             # Create PIL images - full resolution and thumbnailed
             if self.is_color_camera:
                 # For color images, PIL expects RGB format
-                img_full = Image.fromarray(processed_image, 'RGB')
+                img_full = Image.fromarray(processed_image, "RGB")
             else:
                 # For mono images, PIL expects grayscale format
-                img_full = Image.fromarray(processed_image, 'L')
-            
+                img_full = Image.fromarray(processed_image, "L")
+
             img_thumb = img_full.copy()
 
             # Thumbnail only the WebP and JPEG versions
@@ -603,7 +623,9 @@ class ObservatoryCamera:
                 # Upload status file
                 self.save_status_to_s3(settings, timestamp)
             else:
-                print(f"S3 upload skipped - files saved locally: {temp_webp}, {temp_png}")
+                print(
+                    f"S3 upload skipped - files saved locally: {temp_webp}, {temp_png}"
+                )
                 # Don't remove temp files when testing
                 return
 
@@ -778,20 +800,24 @@ class ObservatoryCamera:
         print("\n=== RUNNING IN DEBUG/IDLE MODE ===")
         print("Camera initialized and ready for manual testing.")
         print("Continuous capture is DISABLED.")
-        print("Use 'docker exec -it <container> python test_color_camera.py' to test manually.")
+        print(
+            "Use 'docker exec -it <container> python test_color_camera.py' to test manually."
+        )
         print("Container will stay running but won't take images automatically.\n")
-        
+
         try:
             while True:
                 time.sleep(60)  # Sleep for 1 minute intervals
                 current_time = self.dt_manager.get_current_time()
-                print(f"{current_time.strftime('%H:%M:%S')} - Idle mode, waiting for manual commands...")
+                print(
+                    f"{current_time.strftime('%H:%M:%S')} - Idle mode, waiting for manual commands..."
+                )
         except KeyboardInterrupt:
             print("\nStopping idle mode...")
         finally:
             self.camera.close()
             print("Camera closed")
-    
+
     def run_continuous(self):
         """Main capture loop with responsive time checking"""
         last_cleanup = self.dt_manager.get_current_time() - datetime.timedelta(days=1)
@@ -888,8 +914,8 @@ def main():
     s3_bucket = os.environ.get("S3_BUCKET_NAME")
     skip_s3 = os.environ.get("SKIP_S3_UPLOAD", "false").lower() == "true"
     debug_mode = os.environ.get("DEBUG_MODE", "false").lower() == "true"
-    
-    print(f"Starting with configuration:")
+
+    print("Starting with configuration:")
     print(f"  Camera ID: {camera_id}")
     print(f"  Camera Name: {camera_name}")
     print(f"  Camera Type: {camera_type}")
