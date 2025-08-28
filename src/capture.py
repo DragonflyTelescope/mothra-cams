@@ -168,9 +168,13 @@ class ObservatoryCamera:
 
     def get_mount_status(self):
         """Fetch current mount status from local API"""
+        if self.camera_name == "b14m11":
+            port = 5503
+        elif self.camera_name == "b15m21":
+            port = 5504
         try:
             response = requests.get(
-                "http://10.14.11.220:5500/mount/cached-pointing", timeout=5
+                f"http://10.14.11.220:{port}/mount/cached-pointing", timeout=5
             )
             if response.status_code == 200:
                 payload = response.json()
