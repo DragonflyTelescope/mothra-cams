@@ -598,11 +598,11 @@ class ObservatoryCamera:
 
             # Create temporary files
             temp_webp = f"/tmp/{self.camera_name}-{safe_timestamp}.webp"
-            temp_png = f"/tmp/{self.camera_name}-{safe_timestamp}.png"
+            # temp_png = f"/tmp/{self.camera_name}-{safe_timestamp}.png"
 
             # Save in all formats - PNG at full resolution, others thumbnailed
             img_thumb.save(temp_webp, format="WebP", quality=75, method=6)
-            img_full.save(temp_png, format="PNG")  # Full resolution PNG
+            # img_full.save(temp_png, format="PNG")  # Full resolution PNG
 
             print(f"Saved WebP/JPEG at {img_thumb.size}, PNG at {img_full.size}")
 
@@ -613,34 +613,32 @@ class ObservatoryCamera:
                     f"{self.camera_name}/{self.camera_name}-{safe_timestamp}.webp",
                     mode=settings["mode"],
                 )
-                self.upload_file_to_s3(
-                    temp_png,
-                    f"{self.camera_name}/{self.camera_name}-{safe_timestamp}.png",
-                    mode=settings["mode"],
-                )
+                # self.upload_file_to_s3(
+                #     temp_png,
+                #     f"{self.camera_name}/{self.camera_name}-{safe_timestamp}.png",
+                #     mode=settings["mode"],
+                # )
 
                 # Copy to latest versions using S3
                 self.copy_to_latest(
                     f"{self.camera_name}/{self.camera_name}-{safe_timestamp}.webp",
                     f"{self.camera_name}/latest.webp",
                 )
-                self.copy_to_latest(
-                    f"{self.camera_name}/{self.camera_name}-{safe_timestamp}.png",
-                    f"{self.camera_name}/latest.png",
-                )
+                # self.copy_to_latest(
+                #     f"{self.camera_name}/{self.camera_name}-{safe_timestamp}.png",
+                #     f"{self.camera_name}/latest.png",
+                # )
 
                 # Upload status file
                 self.save_status_to_s3(settings, timestamp)
             else:
-                print(
-                    f"S3 upload skipped - files saved locally: {temp_webp}, {temp_png}"
-                )
+                print(f"S3 upload skipped - files saved locally: {temp_webp}")
                 # Don't remove temp files when testing
                 return
 
             # Clean up temp files
             os.remove(temp_webp)
-            os.remove(temp_png)
+            # os.remove(temp_png)
 
             exposure_display = self._format_exposure_for_display(settings["exposure"])
             print(
