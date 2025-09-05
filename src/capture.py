@@ -449,7 +449,7 @@ class ObservatoryCamera:
             if exposure_seconds < 0.01:
                 wait_time = 0.5
             else:
-                wait_time = exposure_seconds + 0.2
+                wait_time = exposure_seconds + 1
 
             print(f"Waiting {wait_time} seconds...")
             time.sleep(wait_time)
