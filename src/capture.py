@@ -173,6 +173,8 @@ class ObservatoryCamera:
             port = 5503
         elif self.camera_name == "b15m21":
             port = 5504
+        elif self.camera_name == "b14m35":
+            port = 5535
         try:
             response = requests.get(
                 f"http://10.14.11.220:{port}/mount/cached-pointing", timeout=5
