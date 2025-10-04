@@ -232,14 +232,15 @@ class ObservatoryCamera:
         # Now we have a clean is_daylight boolean that works regardless of almanac timing
 
         # Check enclosure status first
-        if self.camera_name == "b14m11":
+        if self.camera_name.startswith("b14"):
             enclosure_status_dict = requests.get(
                 "http://10.14.11.220:8010/building/14/status"
             ).json()
-        elif self.camera_name == "b15m21":
+        elif self.camera_name.startswith("b15"):
             enclosure_status_dict = requests.get(
                 "http://10.14.11.220:8010/building/15/status"
             ).json()
+
         enclosure_status = enclosure_status_dict.get("status", None)
 
         is_enclosure_open = enclosure_status == "Open"
