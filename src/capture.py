@@ -33,8 +33,9 @@ def init_asi_library():
 
     # Check if already initialized
     try:
-        asi.get_num_cameras()
+        num_cameras = asi.get_num_cameras()
         print("ASI library already initialized")
+        print(f"Found {num_cameras} camera(s)")
         return True
     except:
         pass
