@@ -515,11 +515,14 @@ class ObservatoryCamera:
                             rgb_image = image_array.reshape((height, width, 3)).astype(
                                 np.float32
                             )
-                            rgb_image[:, :0] *= 0.4
-                            rgb_image[:, :1] *= 0.6
-                            rgb_image[:, :2] *= 1.4
-                            rgb_image = np.clip(rgb_image, 0, 255).astype(np.uint8)
-                            return rgb_image
+                            mono = (
+                                0.2 * rgb_image[:, :, 0].astype(np.float32)
+                                + 0.5 * rgb_image[:, :, 1].astype(np.float32)
+                                + 0.3 * rgb_image[:, :, 2].astype(np.float32)
+                            )
+                            mono = np.clip(mono, 0, 255).astype(np.uint8)
+                            img_full = Image.fromarray(mono, "L")
+                            return img_full
                         except ValueError as e:
                             print(f"Color reshape failed: {e}")
                             return None
