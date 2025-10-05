@@ -521,8 +521,7 @@ class ObservatoryCamera:
                                 + 0.3 * rgb_image[:, :, 2].astype(np.float32)
                             )
                             mono = np.clip(mono, 0, 255).astype(np.uint8)
-                            img_full = Image.fromarray(mono, "L")
-                            return img_full
+                            return mono
                         except ValueError as e:
                             print(f"Color reshape failed: {e}")
                             return None
@@ -590,7 +589,7 @@ class ObservatoryCamera:
             # Create PIL images - full resolution and thumbnailed
             if self.is_color_camera:
                 # For color images, PIL expects RGB format
-                img_full = Image.fromarray(processed_image, "RGB")
+                img_full = Image.fromarray(processed_image, "L")
             else:
                 # For mono images, PIL expects grayscale format
                 img_full = Image.fromarray(processed_image, "L")
