@@ -513,6 +513,9 @@ class ObservatoryCamera:
                         try:
                             # Reshape as (height, width, 3) for RGB
                             rgb_image = image_array.reshape((height, width, 3))
+                            rgb_image[:, :0] *= 0.6
+                            rgb_image[:, :1] *= 0.8
+                            rgb_image[:, :2] *= 1.2
                             return rgb_image
                         except ValueError as e:
                             print(f"Color reshape failed: {e}")
