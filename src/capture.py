@@ -515,9 +515,9 @@ class ObservatoryCamera:
                             rgb_image = image_array.reshape((height, width, 3)).astype(
                                 np.float32
                             )
-                            rgb_image[:, :0] *= 0.6
-                            rgb_image[:, :1] *= 0.8
-                            rgb_image[:, :2] *= 1.2
+                            rgb_image[:, :0] *= 0.4
+                            rgb_image[:, :1] *= 0.6
+                            rgb_image[:, :2] *= 1.4
                             rgb_image = np.clip(rgb_image, 0, 255).astype(np.uint8)
                             return rgb_image
                         except ValueError as e:
