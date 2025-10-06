@@ -390,11 +390,11 @@ class ObservatoryCamera:
 
             # Scale from 10s (phase=0) to 1s (phase=1) with power function
             base_exposure = 10.0
-            min_exposure = 0.8
+            min_exposure = 1
             exposure_range = base_exposure - min_exposure
 
             # More aggressive scaling (2.5 or 3.0 exponent)
-            darkness_factor = (1.0 - moon_phase) ** 3.3
+            darkness_factor = (1.0 - moon_phase) ** 3
             exposure_seconds = base_exposure - (exposure_range * darkness_factor)
 
             # Ensure we stay within bounds
